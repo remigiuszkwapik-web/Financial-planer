@@ -3,55 +3,64 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#e5e6f0" />
   <title>Financial Planer</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <header>
-    <h1>💸 Financial Planer</h1>
-    <div class="header-actions">
-      <a class="btn ghost" href="/api/export/markdown">⬇ Markdown</a>
-      <a class="btn ghost" href="/api/export/xlsx">⬇ Excel</a>
-    </div>
-  </header>
-
-  <p id="ocr-hint" class="hint" hidden>
-    ⚠️ Tesseract-OCR ist nicht installiert – Beträge/Empfänger werden nicht
-    automatisch gelesen. Du kannst sie auf der Karte selbst eintragen.
-  </p>
-
-  <section class="upload">
-    <label class="dropzone" id="dropzone">
-      <input type="file" id="file-input" accept="image/*" multiple hidden />
-      <span>📷 Screenshots hier ablegen oder tippen zum Auswählen</span>
-    </label>
-  </section>
-
-  <section class="board">
-    <div class="column cards-column">
-      <h2>Zu sortieren <span class="count" id="cards-count">0</span></h2>
-      <div id="cards" class="cards"></div>
-      <p class="empty" id="cards-empty">Keine offenen Karten – lade Screenshots hoch.</p>
-    </div>
-
-    <div class="column categories-column">
-      <div class="categories-head">
-        <h2>Kategorien</h2>
-        <form id="add-category" class="add-category">
-          <input id="category-name" placeholder="Neue Box…" maxlength="40" />
-          <button class="btn" type="submit">+</button>
-        </form>
+  <div class="app">
+    <header>
+      <div class="bal">
+        <span class="bal-lbl">Kontostand<span id="count"></span></span>
+        <span class="bal-val" id="bal-val">…</span>
       </div>
-      <div id="categories" class="categories"></div>
-      <p class="empty" id="categories-empty">Lege deine erste Kategorie-Box an.</p>
-    </div>
-  </section>
+      <button class="iconbtn" id="analysis-btn" title="Monatsanalyse">📊</button>
+      <button class="iconbtn" id="bal-edit" title="Kontostand setzen">✎</button>
+    </header>
 
-  <section class="summary">
-    <h2>Übersicht</h2>
-    <div id="summary"></div>
-  </section>
+    <p id="ocr-hint" class="ocr-hint" hidden>
+      OCR (Tesseract) nicht installiert – Beträge/Empfänger bitte auf der Karte selbst eintragen.
+    </p>
+
+    <div class="deck-area">
+      <div class="deck" id="deck"></div>
+      <div class="deck-empty" id="deck-empty" hidden>Keine offenen Ausgaben 🎉<br>Lade einen Screenshot hoch.</div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="bar">
+      <label class="btn" for="file"><span>📷</span> Screenshot</label>
+      <input type="file" id="file" accept="image/*" multiple />
+      <button class="btn" id="blank"><span>✏️</span> Karte</button>
+      <a class="btn" href="/api/export/xlsx"><span>⬇</span> Excel</a>
+      <a class="btn" href="/api/export/markdown"><span>⬇</span> MD</a>
+    </div>
+  </div>
+
+  <!-- category entries -->
+  <div class="modal" id="modal" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <span class="t" id="m-title"></span>
+        <button class="iconbtn sm" id="m-close">✕</button>
+      </div>
+      <div class="sheet-total" id="m-total"></div>
+      <div class="sheet-list" id="m-list"></div>
+    </div>
+  </div>
+
+  <!-- monthly analysis -->
+  <div class="modal" id="analysis" hidden>
+    <div class="sheet tall">
+      <div class="sheet-head">
+        <span class="t">📊 Monatsanalyse</span>
+        <button class="iconbtn sm" id="a-close">✕</button>
+      </div>
+      <div class="a-highlights" id="a-highlights"></div>
+      <div class="sheet-list" id="a-list"></div>
+    </div>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>
