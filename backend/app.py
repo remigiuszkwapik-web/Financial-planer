@@ -77,24 +77,33 @@ def remove_category(category_id: int) -> dict:
 # ---- transactions / cards ---------------------------------------------------
 
 @app.post("/api/upload")
-async def upload(file: UploadFile = File(...)) -> dict:
+async def upload(file: UploadFile = File(...)) -> list[dict]:
     data = await file.read()
     if not data:
         raise HTTPException(400, "Leere Datei")
 
-    # Persist the screenshot so the card can show a preview.
+    # Persist the screenshot so each card can show the source preview.
     suffix = Path(file.filename or "").suffix or ".png"
     fname = f"{int(time.time() * 1000)}{suffix}"
     (UPLOAD_DIR / fname).write_bytes(data)
 
     result = ocr.extract(data)
-    tx = db.add_transaction(
-        amount_cents=result["amount_cents"] or 0,
-        payee=result["payee"],
-        raw_text=result["raw_text"],
-        image_path=fname,
-    )
-    return tx
+    created: list[dict] = []
+    for row in result["transactions"]:
+        created.append(db.add_transaction(
+            amount_cents=row["amount_cents"],
+            payee=row["payee"],
+            raw_text=row.get("date_label"),
+            image_path=fname,
+        ))
+
+    if not created:
+        # OCR found nothing (or is unavailable) — hand back one blank card so
+        # the user can still enter the transaction manually.
+        created.append(db.add_transaction(
+            amount_cents=0, payee=None, raw_text=None, image_path=fname,
+        ))
+    return created
 
 
 @app.get("/api/cards")

@@ -1,12 +1,16 @@
-"""Screenshot extraction module — the ONLY 'reading from image' step.
+"""Screenshot extraction — the ONLY 'reading from image' step.
 
-This is intentionally a small, swappable module. It reads the text off a
-screenshot and picks a best-guess amount and payee. It does no categorization
-and no math. If Tesseract is not installed, it degrades gracefully to empty
-values so the user can type them by hand.
+A single screenshot of a banking app usually lists MANY transactions. This
+module reads the text and parses every transaction row into its own record:
+{amount_cents (signed), payee, date_label}. It does no categorization and no
+math.
 
-To swap in a different engine later (e.g. a fully-local vision model), just
-provide another `extract()` with the same return shape.
+Discriminator that makes this robust: in a banking statement every transaction
+amount carries an explicit sign ("-13,80", "+16,95"), while noise like the
+account balance ("1.697,14 EUR") does not. So we only accept signed amounts.
+
+If Tesseract is not installed, extraction returns an empty list and the user
+adds rows by hand. To swap in another engine later, keep the same return shape.
 """
 
 from __future__ import annotations
@@ -14,12 +18,27 @@ from __future__ import annotations
 import io
 import re
 
-from .amount import find_amounts_in_text, parse_amount_to_cents
+from .amount import parse_amount_to_cents
 
-# Words that hint a line is the recipient/merchant rather than noise.
-_NOISE_LINE = re.compile(
-    r"^(uhr|datum|date|time|iban|bic|ref|referenz|beleg|betrag|amount|total|"
-    r"summe|mwst|ust|\d{1,2}[:.]\d{2}|\d{1,2}[./]\d{1,2}[./]\d{2,4})",
+# A transaction amount: explicit sign, then a German-formatted number.
+_SIGNED_AMOUNT = re.compile(r"([+\-−])\s?(\d{1,3}(?:[.\s]\d{3})*,\d{2})")
+
+# Date group headers in the statement ("5. Juli", "Vorgemerkte Umsätze", ...).
+_MONTHS = (
+    "januar|februar|märz|maerz|april|mai|juni|juli|august|september|"
+    "oktober|november|dezember|jan|feb|mär|mar|apr|jun|jul|aug|sep|okt|nov|dez"
+)
+_DATE_HEADER = re.compile(
+    rf"(vorgemerkt\w*|heute|gestern|\b\d{{1,2}}\.\s*(?:{_MONTHS})\b"
+    rf"|\b\d{{1,2}}\.\d{{1,2}}\.\d{{2,4}}\b)",
+    re.IGNORECASE,
+)
+
+# Lines that are never transactions (nav bar, headers, balance labels).
+_SKIP_LINE = re.compile(
+    r"^(eur|umsätze|umsatze|meine konten|girokonto|geld senden|vorschau|"
+    r"karten|wero|konten|aufträge|auftrage|investieren|produkte|service|"
+    r"\d{1,2}:\d{2}|lte|de\d{2}\b)",
     re.IGNORECASE,
 )
 
@@ -31,63 +50,80 @@ def _ocr_text(image_bytes: bytes) -> str:
         from PIL import Image
     except Exception:
         return ""
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-        return pytesseract.image_to_string(img, lang="deu+eng")
-    except Exception:
-        # Fall back to English-only if the German data pack is missing.
+    for lang in ("deu+eng", None):
         try:
-            import pytesseract
-            from PIL import Image
-
             img = Image.open(io.BytesIO(image_bytes))
-            return pytesseract.image_to_string(img)
+            return pytesseract.image_to_string(img, lang=lang) if lang \
+                else pytesseract.image_to_string(img)
         except Exception:
-            return ""
-
-
-def _guess_amount(text: str) -> int | None:
-    amounts = find_amounts_in_text(text)
-    if not amounts:
-        return None
-    # Heuristic: the largest monetary value on the screenshot is usually the
-    # total. The user can always correct it on the card.
-    return max(amounts)
-
-
-def _guess_payee(text: str) -> str | None:
-    for line in text.splitlines():
-        s = line.strip()
-        if len(s) < 3:
             continue
-        if _NOISE_LINE.match(s):
+    return ""
+
+
+def _clean_payee(text: str) -> str:
+    """Tidy the left-hand text of a row into a payee label."""
+    s = re.sub(r"\s{2,}", " ", text).strip(" \t·|-–—")
+    # Drop a leading transaction-type prefix that carries no info on its own.
+    s = re.sub(r"^(visa|master(card)?|paypal|lastschrift|dauerauftrag)\s+",
+               "", s, flags=re.IGNORECASE).strip()
+    return s[:80]
+
+
+def parse_transactions(text: str) -> list[dict]:
+    """Parse OCR text into a list of transaction rows.
+
+    Returns records shaped like:
+        {"amount_cents": int (signed), "payee": str|None, "date_label": str|None}
+    """
+    rows: list[dict] = []
+    current_date: str | None = None
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
             continue
-        # Skip lines that are mostly digits/punctuation (amounts, dates, ids).
-        letters = sum(c.isalpha() for c in s)
-        if letters < 3 or letters < len(s) * 0.4:
+
+        header = _DATE_HEADER.search(line)
+        # A pure date header (no amount on it) just updates the running date.
+        if header and not _SIGNED_AMOUNT.search(line):
+            current_date = header.group(0).strip()
             continue
-        return s[:80]
-    return None
+
+        if _SKIP_LINE.match(line):
+            continue
+
+        matches = list(_SIGNED_AMOUNT.finditer(line))
+        if not matches:
+            continue
+
+        m = matches[-1]  # rightmost = the transaction amount column
+        cents = parse_amount_to_cents(m.group(2))
+        if cents is None:
+            continue
+        sign = -1 if m.group(1) in "-−" else 1
+
+        payee = _clean_payee(line[: m.start()])
+        rows.append({
+            "amount_cents": sign * cents,
+            "payee": payee or None,
+            "date_label": current_date,
+        })
+
+    return rows
 
 
 def extract(image_bytes: bytes) -> dict:
-    """Return {'amount_cents': int|None, 'payee': str|None, 'raw_text': str}."""
+    """Return {'transactions': [ ... ], 'raw_text': str} for one screenshot."""
     text = _ocr_text(image_bytes)
-    return {
-        "amount_cents": _guess_amount(text),
-        "payee": _guess_payee(text),
-        "raw_text": text,
-    }
+    return {"transactions": parse_transactions(text), "raw_text": text}
 
 
 def ocr_available() -> bool:
     try:
-        import pytesseract  # noqa: F401
+        import pytesseract
         from PIL import Image  # noqa: F401
 
-        import pytesseract as _pt
-
-        _pt.get_tesseract_version()
+        pytesseract.get_tesseract_version()
         return True
     except Exception:
         return False
