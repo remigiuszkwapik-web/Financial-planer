@@ -161,6 +161,7 @@
     <label class="menu-item" for="restore">📂 Backup wiederherstellen</label>
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
+    <div class="pp-hint" id="storage-status"></div>
   </div>
 </div></div>
 
@@ -424,7 +425,13 @@
   });
 
   /* ---------- menu / balance / backup / export ---------- */
-  function openMenu(){$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
+  function openMenu(){updateStorageStatus();$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
+  function updateStorageStatus(){var el=$("#storage-status");if(!el)return;el.textContent="Speicher wird geprüft…";
+    var p=(navigator.storage&&navigator.storage.persisted)?navigator.storage.persisted():Promise.resolve(null);
+    var e=(navigator.storage&&navigator.storage.estimate)?navigator.storage.estimate():Promise.resolve({usage:0});
+    Promise.all([p,e]).then(function(r){var pd=r[0],kb=Math.round((r[1].usage||0)/1024);
+      el.textContent="Speicher: "+(pd===true?"dauerhaft ✓":pd===false?"nicht garantiert ⚠️ – App zum Home-Bildschirm hinzufügen & regelmäßig Backup speichern":"Status unbekannt")+" · belegt ~"+kb+" KB";
+    }).catch(function(){el.textContent="";});}
   $("#menu-btn").addEventListener("click",openMenu);
   $("#menu-close").addEventListener("click",closeMenu);
   $("#menu").addEventListener("click",function(e){if(e.target===$("#menu"))closeMenu();});
@@ -448,6 +455,8 @@
 
   /* ---------- PWA (only when hosted; harmless otherwise) ---------- */
   if("serviceWorker" in navigator){try{navigator.serviceWorker.register("sw.js").catch(function(){});}catch(e){}}
+  // Ask the browser to keep this data (don't evict under storage pressure).
+  if(navigator.storage&&navigator.storage.persist){try{navigator.storage.persist();}catch(e){}}
 
   /* ---------- init ---------- */
   loadState().then(function(s){state=(s&&s.transactions)?s:freshState();if(typeof state.startBalance!=="number")state.startBalance=0;if(!state.nextId){var mx=0;(state.transactions||[]).concat(state.categories||[]).forEach(function(o){if(o.id>mx)mx=o.id;});state.nextId=mx+1;}render();});
