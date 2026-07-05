@@ -147,7 +147,7 @@
     <div class="menu-item" id="mi-backup">💾 Backup speichern</div>
     <label class="menu-item" for="restore">📂 Backup wiederherstellen</label>
     <input type="file" id="restore" accept="application/json,.json" />
-    <div class="menu-item danger" id="mi-reset">🗑 Demo zurücksetzen</div>
+    <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
   </div>
 </div></div>
 
@@ -208,32 +208,10 @@
   var state=null;
   function id(){return state.nextId++;}
   function freshState(){
+    // The real app starts empty — no demo entries. A few starter categories
+    // give you somewhere to drop right away; rename or delete them freely.
     var s={transactions:[],categories:[],startBalance:0,nextId:1};
-    ["Lebensmittel","Restaurants","Fixkosten","Reise"].forEach(function(n){s.categories.push({id:s.nextId++,name:n});});
-    var cat=function(n){return s.categories.filter(function(c){return c.name===n;})[0].id;};
-    function tx(amount,payee,date,catId,kind){s.transactions.push({id:s.nextId++,amount:amount,payee:payee,date:date,categoryId:catId||null,kind:kind||(amount>0?"income":"expense")});}
-    // current month: unsorted expenses (the deck) + income straight to balance
-    var T=todayISO(),M=T.slice(0,8);
-    tx(-1380,"CASUALFOOD · Frankfurt",M+"05",null,"expense");
-    tx(-220,"DB HH-Airport · Hamburg",M+"05",null,"expense");
-    tx(-40000,"Tetiana Lomakina",M+"04",null,"expense");
-    tx(-850,"DONER TIME",M+"03",null,"expense");
-    tx(-379,"BUDNIKOWSKY FIL. 288",M+"03",null,"expense");
-    tx(-2719,"KAUFLAND HAMBURG",M+"02",null,"expense");
-    tx(-830,"SUMUP *HAUS5 SERVICE",M+"01",null,"expense");
-    tx(1695,"Warner Bros. Studios",M+"05",null,"income");
-    tx(1730,"Erstattung",M+"04",null,"income");
-    // history (already sorted) so the analysis view has content
-    tx(-80000,"Miete","2026-06-01",cat("Fixkosten"));
-    tx(-3800,"REWE","2026-06-14",cat("Lebensmittel"));
-    tx(-5100,"EDEKA","2026-06-28",cat("Lebensmittel"));
-    tx(-1900,"Trattoria","2026-06-10",cat("Restaurants"));
-    tx(250000,"Gehalt","2026-06-27",null,"income");
-    tx(-80000,"Miete","2026-05-01",cat("Fixkosten"));
-    tx(-4200,"REWE","2026-05-12",cat("Lebensmittel"));
-    tx(-2600,"Pizzeria","2026-05-20",cat("Restaurants"));
-    tx(-12000,"Bahn Berlin","2026-05-05",cat("Reise"));
-    tx(250000,"Gehalt","2026-05-28",null,"income");
+    ["Lebensmittel","Fixkosten","Freizeit","Sonstiges"].forEach(function(n){s.categories.push({id:s.nextId++,name:n});});
     return s;
   }
 
@@ -366,7 +344,7 @@
   $("#menu-close").addEventListener("click",closeMenu);
   $("#menu").addEventListener("click",function(e){if(e.target===$("#menu"))closeMenu();});
   $("#mi-balance").addEventListener("click",function(){closeMenu();var input=prompt("Aktueller Kontostand (€):",(balance()/100).toFixed(2).replace(".",","));if(input==null)return;state.startBalance+=(toCents(input)-balance());render();});
-  $("#mi-reset").addEventListener("click",function(){if(confirm("Alles zurücksetzen (Demo-Daten laden)?")){state=freshState();render();}closeMenu();});
+  $("#mi-reset").addEventListener("click",function(){if(confirm("Alle Einträge und Kategorien löschen? Die App startet danach leer.")){state=freshState();render();}closeMenu();});
   function download(name,text,mime){var b=new Blob([text],{type:mime}),u=URL.createObjectURL(b);var a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},1000);}
   function plain(c){return (c/100).toFixed(2).replace(".",",");}
   $("#mi-csv").addEventListener("click",function(){closeMenu();var rows=[["Datum","Kategorie","Empfaenger","Betrag"]];
