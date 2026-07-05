@@ -40,6 +40,11 @@
     box-shadow:-4px -4px 9px var(--hl),5px 5px 11px var(--sd);}
   .iconbtn.sm{width:40px;height:40px;}
   .iconbtn:active{box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
+  .monthbar{display:flex;align-items:center;gap:10px;flex:none;}
+  .monthbar .iconbtn{width:44px;height:40px;font-size:1.2rem;}
+  .monthbar .mb-mid{flex:1;text-align:center;display:flex;flex-direction:column;gap:1px;}
+  .monthbar #mb-label{font-weight:700;font-size:1rem;}
+  .monthbar #mb-sum{font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
   .deck-area{flex:1 1 auto;position:relative;min-height:150px;display:flex;align-items:center;}
   .deck{position:relative;width:100%;height:158px;}
   .card{position:absolute;inset:0;border-radius:var(--r);background:var(--card-bg);color:var(--card-ink);box-shadow:var(--card-shadow);
@@ -130,6 +135,11 @@
     <button class="iconbtn" id="analysis-btn" title="Monatsanalyse">📊</button>
     <button class="iconbtn" id="menu-btn" title="Menü">⋯</button>
   </header>
+  <div class="monthbar">
+    <button class="iconbtn sm" id="m-prev">‹</button>
+    <div class="mb-mid"><span id="mb-label">—</span><span id="mb-sum"></span></div>
+    <button class="iconbtn sm" id="m-next">›</button>
+  </div>
   <div class="deck-area">
     <div class="deck" id="deck"></div>
     <div class="deck-empty" id="deck-empty" hidden>Keine offenen Ausgaben 🎉<br>Lade einen Screenshot hoch.</div>
@@ -263,8 +273,12 @@
     return {assignments:assignments,unmatched:unmatched};
   }
   function catName(cid){var c=state.categories.filter(function(x){return x.id===cid;})[0];return c?c.name:null;}
-  function catItems(cid){return allTx().filter(function(t){return t.categoryId===cid;}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
+  var viewMonth=todayISO().slice(0,7);
+  function inViewMonth(t){return (t.date||"").slice(0,7)===viewMonth;}
+  function shiftMonth(d){var y=+viewMonth.slice(0,4),m=+viewMonth.slice(5,7)-1+d;viewMonth=new Date(Date.UTC(y,m,1)).toISOString().slice(0,7);render();}
+  function catItems(cid){return allTx().filter(function(t){return t.categoryId===cid&&inViewMonth(t);}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
   function catTotal(cid){return catItems(cid).reduce(function(a,b){return a+b.amount;},0);}
+  function monthExpense(){return allTx().reduce(function(s,t){return s+((t.amount<0&&inViewMonth(t))?-t.amount:0);},0);}
   function balance(){return state.transactions.reduce(function(a,b){return a+((b.kind==="income"&&b.credited===false)?0:b.amount);},state.startBalance);}
   function colorForName(name){var i=state.categories.map(function(c){return c.name;}).indexOf(name);return i>=0?PALETTE[i%PALETTE.length]:"#9aa0b5";}
   function monthlyReport(){
@@ -282,7 +296,8 @@
 
   /* ---------- render ---------- */
   var $=function(s){return document.querySelector(s);};
-  function render(){renderBalance();renderDeck();renderGrid();save();}
+  function render(){renderBalance();renderMonthbar();renderDeck();renderGrid();save();}
+  function renderMonthbar(){var p=viewMonth.split("-");$("#mb-label").textContent=MONTHS_DE[+p[1]-1]+" "+p[0];$("#mb-sum").textContent="Ausgaben: "+fmt(monthExpense());}
   function renderBalance(){var b=balance();var el=$("#bal-val");el.textContent=fmt(b);el.classList.toggle("neg",b<0);
     var n=unsortedCards().length;$("#count").textContent=n?" · "+n+" offen":"";}
   function buildCard(tx){var c=document.createElement("div");c.dataset.id=tx.id;
@@ -388,6 +403,8 @@
     $("#analysis").hidden=false;}
   function monthLabel(k){var p=k.split("-");return MONTHS_DE[parseInt(p[1],10)-1]+" "+p[0];}
   $("#analysis-btn").addEventListener("click",openAnalysis);
+  $("#m-prev").addEventListener("click",function(){shiftMonth(-1);});
+  $("#m-next").addEventListener("click",function(){shiftMonth(1);});
   $("#a-close").addEventListener("click",function(){$("#analysis").hidden=true;});
   $("#analysis").addEventListener("click",function(e){if(e.target===$("#analysis"))$("#analysis").hidden=true;});
 
