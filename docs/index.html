@@ -338,7 +338,7 @@
   function ensureTesseract(){if(window.Tesseract)return Promise.resolve(window.Tesseract);return loadScript(TESS_URL).then(function(){return window.Tesseract;});}
   function ocrImage(file){return ensureTesseract().then(function(T){return T.recognize(file,"deu+eng").then(function(r){return r.data.text;});});}
   function addParsedRows(rows){var today=new Date();rows.forEach(function(r){
-    var inc=r.amount>0;state.transactions.push({id:id(),amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense",credited:inc?true:undefined});});}
+    var inc=r.amount>0;state.transactions.push({id:id(),amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense",credited:inc?false:undefined});});}
   function handleFiles(files){if(!files.length)return;
     $("#busy").hidden=false;$("#deck").hidden=true;$("#deck-empty").hidden=true;
     var chain=Promise.resolve(),any=false;
