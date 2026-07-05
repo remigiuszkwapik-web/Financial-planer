@@ -58,6 +58,11 @@
   .card.income .amount{color:var(--card-income);}
   .card .credit{margin-top:auto;border:none;border-radius:13px;background:var(--card-income);color:#08231b;font-weight:700;font-size:.95rem;padding:12px;cursor:pointer;font-family:inherit;width:100%;}
   .card .credit:active{transform:scale(.98);}
+  .card .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:auto;}
+  .card .act{border:none;border-radius:11px;background:rgba(127,127,150,.2);color:var(--card-faint);font-size:1rem;padding:7px 11px;cursor:pointer;font-family:inherit;line-height:1;}
+  .card .act.del{color:var(--card-expense);}
+  .card .act:active{transform:scale(.94);}
+  .m-row .del2{color:var(--expense);}
   .card.behind{pointer-events:none;}
   .card.ghost{position:fixed;z-index:2000;pointer-events:none;box-shadow:var(--card-shadow);}
   .deck-empty{width:100%;text-align:center;color:var(--ink-soft);padding:30px 16px;border-radius:var(--r);box-shadow:inset -4px -4px 8px var(--hl),inset 5px 5px 11px var(--sd);}
@@ -239,7 +244,7 @@
 
   /* ---------- selectors ---------- */
   function allTx(){return state.transactions;}
-  function unsortedCards(){return allTx().filter(function(t){return (t.kind==="expense"&&t.categoryId==null&&!t.awaitPaypal)||(t.kind==="income"&&t.credited===false);}).sort(function(a,b){return b.id-a.id;});}
+  function unsortedCards(){return allTx().filter(function(t){return (t.kind==="expense"&&t.categoryId==null&&!t.awaitPaypal)||(t.kind==="income"&&t.credited===false);}).sort(function(a,b){var av=a.deckOrder!=null?a.deckOrder:a.id,bv=b.deckOrder!=null?b.deckOrder:b.id;return bv-av;});}
   function paypalHolding(){return allTx().filter(function(t){return t.awaitPaypal===true;}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
   function matchPaypal(holding,rows,windowDays){
     windowDays=windowDays||5;var assignments=[],unmatched=[];
@@ -284,12 +289,18 @@
     var inc=tx.kind==="income";c.className=inc?"card income":"card";
     var head='<div class="crow"><input class="payee" value="'+esc(tx.payee||"")+'" placeholder="'+(inc?"Einnahme, z. B. Gehalt…":"Empfänger…")+'"><button class="kindtog">'+(inc?"Einnahme ⇄":"Ausgabe ⇄")+'</button></div>';
     var amount='<input class="amount" inputmode="decimal" value="'+fmt(inc?Math.abs(tx.amount):tx.amount)+'">';
-    c.innerHTML=head+amount+(inc?'<button class="credit">＋ Dem Konto gutschreiben</button>':'');
+    var acts='<div class="actions">'+(inc?'':'<button class="act" data-a="pp" title="Zu PayPal legen">🅿️</button>')+'<button class="act" data-a="skip" title="Später ansehen">⏭</button><button class="act del" data-a="del" title="Löschen">🗑</button></div>';
+    c.innerHTML=head+amount+(inc?'<button class="credit">＋ Dem Konto gutschreiben</button>':'')+acts;
     return c;}
   function toggleKind(tx){
     if(tx.kind==="income"){tx.kind="expense";tx.amount=-Math.abs(tx.amount);tx.credited=undefined;tx.categoryId=null;}
     else{tx.kind="income";tx.amount=Math.abs(tx.amount);tx.credited=false;tx.categoryId=null;}
     render();}
+  function deleteTx(id2){state.transactions=state.transactions.filter(function(t){return t.id!==id2;});}
+  function doAction(tx,a){
+    if(a==="del"){if(confirm("Diese Buchung wirklich löschen?")){deleteTx(tx.id);render();}}
+    else if(a==="skip"){state.orderFloor=(state.orderFloor||0)-1;tx.deckOrder=state.orderFloor;render();}
+    else if(a==="pp"){tx.awaitPaypal=true;tx.categoryId=null;render();}}
   function renderDeck(){var deck=$("#deck");deck.innerHTML="";var cards=unsortedCards();var empty=cards.length===0;
     $("#deck-empty").hidden=!empty||!$("#busy").hidden;deck.hidden=empty;
     var shown=cards.slice(0,3);
@@ -302,9 +313,10 @@
           amt.addEventListener("blur",function(){tx.amount=Math.abs(toCents(amt.value));render();});
           card.querySelector(".credit").addEventListener("click",function(){tx.amount=Math.abs(toCents(amt.value));if(tx.amount<=0){alert("Bitte einen Betrag eingeben.");return;}tx.credited=true;render();});
           card.querySelector(".kindtog").addEventListener("click",function(){toggleKind(tx);});
+          Array.prototype.slice.call(card.querySelectorAll(".act")).forEach(function(btn){btn.addEventListener("click",function(){doAction(tx,btn.dataset.a);});});
         }else{
           amt.addEventListener("blur",function(){tx.amount=-Math.abs(toCents(amt.value));render();});
-          enableDrag(card,tx,function(t){if(t.closest(".kindtog")){toggleKind(tx);return;}var inp=t.closest("input");if(inp){try{inp.focus();}catch(_){}}});
+          enableDrag(card,tx,function(t){var act=t.closest(".act");if(act){doAction(tx,act.dataset.a);return;}if(t.closest(".kindtog")){toggleKind(tx);return;}var inp=t.closest("input");if(inp){try{inp.focus();}catch(_){}}});
         }}
       else card.classList.add("behind");deck.appendChild(card);})(shown[i],i);}}
   function renderGrid(){var grid=$("#grid");grid.innerHTML="";
@@ -340,7 +352,9 @@
       function end(ev){if(ev.pointerId!==e.pointerId)return;card.removeEventListener("pointermove",move);card.removeEventListener("pointerup",end);card.removeEventListener("pointercancel",end);
         try{card.releasePointerCapture(e.pointerId);}catch(_){}clearHi();
         if(!dragging){if(onTap)onTap(startT);return;}card.style.opacity="";if(ghost)ghost.remove();
-        var box=boxAt(ev.clientX,ev.clientY);if(box){tx.categoryId=parseInt(box.dataset.id,10);render();}}
+        var box=boxAt(ev.clientX,ev.clientY);
+        if(box){tx.categoryId=parseInt(box.dataset.id,10);render();}
+        else{var dx=ev.clientX-sx,dy=ev.clientY-sy;if(Math.abs(dx)>100||dy>80){doAction(tx,"skip");}}}
       card.addEventListener("pointermove",move);card.addEventListener("pointerup",end);card.addEventListener("pointercancel",end);});}
   function boxAt(x,y){var el=document.elementFromPoint(x,y);var c=el?el.closest(".cat"):null;return (c&&!c.classList.contains("add"))?c:null;}
   function highlight(x,y){clearHi();var b=boxAt(x,y);if(b)b.classList.add("on");}
@@ -353,8 +367,9 @@
     var list=$("#m-list");list.innerHTML="";
     if(!items.length)list.innerHTML='<div class="m-empty">Noch keine Einträge — zieh eine Karte hierher.</div>';
     items.forEach(function(it){var row=document.createElement("div");row.className="m-row";
-      row.innerHTML='<div class="p">'+esc(it.payee||"—")+'<div class="d">'+(it.date||"")+'</div></div><span class="a '+(it.amount>0?"pos":"")+'">'+fmt(it.amount)+'</span><button class="back" title="Zurück in den Stapel">↩</button>';
+      row.innerHTML='<div class="p">'+esc(it.payee||"—")+'<div class="d">'+(it.date||"")+'</div></div><span class="a '+(it.amount>0?"pos":"")+'">'+fmt(it.amount)+'</span><button class="back" title="Zurück in den Stapel">↩</button><button class="back del2" title="Löschen">🗑</button>';
       row.querySelector(".back").addEventListener("click",function(){it.categoryId=null;render();openCategory(cid,name,i);});
+      row.querySelector(".del2").addEventListener("click",function(){if(confirm("Diese Buchung löschen?")){deleteTx(it.id);render();openCategory(cid,name,i);}});
       list.appendChild(row);});
     $("#modal").hidden=false;}
   $("#m-close").addEventListener("click",function(){$("#modal").hidden=true;});
@@ -404,8 +419,9 @@
     if(!ph.length)list.innerHTML='<div class="m-empty">Kein offener PayPal-Posten.</div>';
     ph.forEach(function(tx){
       var row=document.createElement("div");row.className="m-row";
-      row.innerHTML='<div class="p">'+esc(tx.payee||"PayPal")+'<div class="d">'+(tx.date||"")+'</div></div><span class="a">'+fmt(tx.amount)+'</span><button class="back" title="Ohne Abgleich sortieren">↩</button>';
+      row.innerHTML='<div class="p">'+esc(tx.payee||"PayPal")+'<div class="d">'+(tx.date||"")+'</div></div><span class="a">'+fmt(tx.amount)+'</span><button class="back" title="Ohne Abgleich sortieren">↩</button><button class="back del2" title="Löschen">🗑</button>';
       row.querySelector(".back").addEventListener("click",function(){tx.awaitPaypal=undefined;render();openPaypal();});
+      row.querySelector(".del2").addEventListener("click",function(){if(confirm("Diese Buchung löschen?")){deleteTx(tx.id);render();openPaypal();}});
       list.appendChild(row);
     });
     $("#ppmodal").hidden=false;
