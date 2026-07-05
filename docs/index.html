@@ -50,6 +50,10 @@
   .card .payee::placeholder{color:var(--card-faint);}
   .card input{touch-action:none;}
   .card .amount{font-variant-numeric:tabular-nums;font-size:2.3rem;font-weight:700;letter-spacing:-.02em;background:transparent;border:none;color:var(--card-expense);width:100%;padding:0;outline:none;font-family:inherit;}
+  .card.income{border-left:6px solid var(--card-income);justify-content:flex-start;gap:8px;}
+  .card.income .amount{color:var(--card-income);}
+  .card .credit{margin-top:auto;border:none;border-radius:13px;background:var(--card-income);color:#08231b;font-weight:700;font-size:.95rem;padding:12px;cursor:pointer;font-family:inherit;width:100%;}
+  .card .credit:active{transform:scale(.98);}
   .card.behind{pointer-events:none;}
   .card.ghost{position:fixed;z-index:2000;pointer-events:none;box-shadow:var(--card-shadow);}
   .deck-empty{width:100%;text-align:center;color:var(--ink-soft);padding:30px 16px;border-radius:var(--r);box-shadow:inset -4px -4px 8px var(--hl),inset 5px 5px 11px var(--sd);}
@@ -122,7 +126,8 @@
   <div class="bar">
     <label class="btn" for="file"><span>📷</span> Screenshot</label>
     <input type="file" id="file" accept="image/*" multiple />
-    <button class="btn" id="blank"><span>✏️</span> Karte</button>
+    <button class="btn" id="blank"><span>✏️</span> Ausgabe</button>
+    <button class="btn" id="income"><span>➕</span> Einnahme</button>
   </div>
 </div>
 
@@ -217,11 +222,11 @@
 
   /* ---------- selectors ---------- */
   function allTx(){return state.transactions;}
-  function unsortedCards(){return allTx().filter(function(t){return t.kind==="expense"&&t.categoryId==null;}).sort(function(a,b){return b.id-a.id;});}
+  function unsortedCards(){return allTx().filter(function(t){return (t.kind==="expense"&&t.categoryId==null)||(t.kind==="income"&&t.credited===false);}).sort(function(a,b){return b.id-a.id;});}
   function catName(cid){var c=state.categories.filter(function(x){return x.id===cid;})[0];return c?c.name:null;}
   function catItems(cid){return allTx().filter(function(t){return t.categoryId===cid;}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
   function catTotal(cid){return catItems(cid).reduce(function(a,b){return a+b.amount;},0);}
-  function balance(){return state.transactions.reduce(function(a,b){return a+b.amount;},state.startBalance);}
+  function balance(){return state.transactions.reduce(function(a,b){return a+((b.kind==="income"&&b.credited===false)?0:b.amount);},state.startBalance);}
   function colorForName(name){var i=state.categories.map(function(c){return c.name;}).indexOf(name);return i>=0?PALETTE[i%PALETTE.length]:"#9aa0b5";}
   function monthlyReport(){
     var byM={},catM={};
@@ -241,8 +246,12 @@
   function render(){renderBalance();renderDeck();renderGrid();save();}
   function renderBalance(){var b=balance();var el=$("#bal-val");el.textContent=fmt(b);el.classList.toggle("neg",b<0);
     var n=unsortedCards().length;$("#count").textContent=n?" · "+n+" offen":"";}
-  function buildCard(tx){var c=document.createElement("div");c.className="card";c.dataset.id=tx.id;
-    c.innerHTML='<input class="payee" value="'+esc(tx.payee||"")+'" placeholder="Empfänger…"><input class="amount" inputmode="decimal" value="'+fmt(tx.amount)+'">';return c;}
+  function buildCard(tx){var c=document.createElement("div");c.dataset.id=tx.id;
+    if(tx.kind==="income"){c.className="card income";
+      c.innerHTML='<input class="payee" value="'+esc(tx.payee||"")+'" placeholder="Einnahme, z. B. Gehalt…"><input class="amount" inputmode="decimal" value="'+fmt(Math.abs(tx.amount))+'"><button class="credit">＋ Dem Konto gutschreiben</button>';}
+    else{c.className="card";
+      c.innerHTML='<input class="payee" value="'+esc(tx.payee||"")+'" placeholder="Empfänger…"><input class="amount" inputmode="decimal" value="'+fmt(tx.amount)+'">';}
+    return c;}
   function renderDeck(){var deck=$("#deck");deck.innerHTML="";var cards=unsortedCards();var empty=cards.length===0;
     $("#deck-empty").hidden=!empty||!$("#busy").hidden;deck.hidden=empty;
     var shown=cards.slice(0,3);
@@ -250,9 +259,14 @@
       card.style.transform="translateY("+(i*-12)+"px) scale("+(1-i*0.05)+")";card.style.opacity=i===0?"1":(i===1?"0.9":"0.75");
       if(i===0){var amt=card.querySelector(".amount");
         amt.addEventListener("focus",function(){amt.value=(Math.abs(tx.amount)/100).toString().replace(".",",");});
-        amt.addEventListener("blur",function(){tx.amount=-Math.abs(toCents(amt.value));render();});
         card.querySelector(".payee").addEventListener("blur",function(e){tx.payee=e.target.value;save();});
-        enableDrag(card,tx,function(t){var inp=t.closest("input");if(inp){try{inp.focus();}catch(_){}}});}
+        if(tx.kind==="income"){
+          amt.addEventListener("blur",function(){tx.amount=Math.abs(toCents(amt.value));render();});
+          card.querySelector(".credit").addEventListener("click",function(){tx.amount=Math.abs(toCents(amt.value));if(tx.amount<=0){alert("Bitte einen Betrag eingeben.");return;}tx.credited=true;render();});
+        }else{
+          amt.addEventListener("blur",function(){tx.amount=-Math.abs(toCents(amt.value));render();});
+          enableDrag(card,tx,function(t){var inp=t.closest("input");if(inp){try{inp.focus();}catch(_){}}});
+        }}
       else card.classList.add("behind");deck.appendChild(card);})(shown[i],i);}}
   function renderGrid(){var grid=$("#grid");grid.innerHTML="";
     state.categories.forEach(function(cat,i){var total=catTotal(cat.id),count=catItems(cat.id).length;
@@ -324,7 +338,7 @@
   function ensureTesseract(){if(window.Tesseract)return Promise.resolve(window.Tesseract);return loadScript(TESS_URL).then(function(){return window.Tesseract;});}
   function ocrImage(file){return ensureTesseract().then(function(T){return T.recognize(file,"deu+eng").then(function(r){return r.data.text;});});}
   function addParsedRows(rows){var today=new Date();rows.forEach(function(r){
-    state.transactions.push({id:id(),amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:r.amount>0?"income":"expense"});});}
+    var inc=r.amount>0;state.transactions.push({id:id(),amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense",credited:inc?true:undefined});});}
   function handleFiles(files){if(!files.length)return;
     $("#busy").hidden=false;$("#deck").hidden=true;$("#deck-empty").hidden=true;
     var chain=Promise.resolve(),any=false;
@@ -337,6 +351,7 @@
     chain.then(function(){$("#busy").hidden=true;render();});}
   $("#file").addEventListener("change",function(e){handleFiles(e.target.files);e.target.value="";});
   $("#blank").addEventListener("click",function(){state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});render();});
+  $("#income").addEventListener("click",function(){state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"income",credited:false});render();});
 
   /* ---------- menu / balance / backup / export ---------- */
   function openMenu(){$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
