@@ -72,6 +72,10 @@
   .cat .cnt{font-size:.7rem;color:var(--ink-faint);}
   .cat .x{position:absolute;top:5px;right:7px;background:none;border:none;color:var(--ink-faint);font-size:.78rem;cursor:pointer;font-family:inherit;line-height:1;padding:3px;}
   .cat.add{align-items:center;justify-content:center;color:var(--lav);font-weight:700;box-shadow:-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
+  .cat.paypal{box-shadow:0 0 0 2px #2b74c7 inset,-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
+  .cat.paypal .nm{color:#2b74c7;}
+  .cat.paypal .tot{color:#2b74c7;font-size:.95rem;}
+  .pp-hint{font-size:.8rem;color:var(--ink-soft);line-height:1.35;}
   .cat.add:active{box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   .bar{flex:none;display:flex;gap:9px;}
   .bar .btn{flex:1;border:none;border-radius:15px;background:var(--ground);color:var(--ink);padding:12px 6px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;
@@ -160,6 +164,14 @@
   </div>
 </div></div>
 
+<div class="modal" id="ppmodal" hidden><div class="sheet tall">
+  <div class="sheet-head"><span class="t">🅿️ PayPal abgleichen</span><button class="iconbtn sm" id="pp-close">✕</button></div>
+  <label class="menu-item" for="pp-file">📷 PayPal-Screenshot abgleichen</label>
+  <input type="file" id="pp-file" accept="image/*" />
+  <div class="pp-hint" id="pp-hint">Diese Konto-Buchungen zeigen nur „PayPal". Schick den PayPal-Screenshot – der echte Händler wird zugeordnet, dann kannst du die Karte normal sortieren.</div>
+  <div class="sheet-list" id="pp-list"></div>
+</div></div>
+
 <script>
 (function(){
   "use strict";
@@ -226,7 +238,24 @@
 
   /* ---------- selectors ---------- */
   function allTx(){return state.transactions;}
-  function unsortedCards(){return allTx().filter(function(t){return (t.kind==="expense"&&t.categoryId==null)||(t.kind==="income"&&t.credited===false);}).sort(function(a,b){return b.id-a.id;});}
+  function unsortedCards(){return allTx().filter(function(t){return (t.kind==="expense"&&t.categoryId==null&&!t.awaitPaypal)||(t.kind==="income"&&t.credited===false);}).sort(function(a,b){return b.id-a.id;});}
+  function paypalHolding(){return allTx().filter(function(t){return t.awaitPaypal===true;}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
+  function matchPaypal(holding,rows,windowDays){
+    windowDays=windowDays||5;var assignments=[],unmatched=[];
+    function days(a,b){return Math.abs((new Date(a)-new Date(b))/86400000);}
+    rows.forEach(function(row){
+      if(row.amount>=0){unmatched.push(row);return;}   // only outgoing payments relabel a bank expense
+      var best=-1,bestDiff=1e9;
+      holding.forEach(function(h,hi){
+        if(h._m)return; if(Math.abs(h.amount)!==Math.abs(row.amount))return;
+        var d=days(h.date,row.dateISO); if(d<=windowDays&&d<bestDiff){bestDiff=d;best=hi;}
+      });
+      if(best>=0){holding[best]._m=true;assignments.push({id:holding[best].id,merchant:row.payee});}
+      else unmatched.push(row);
+    });
+    holding.forEach(function(h){delete h._m;});
+    return {assignments:assignments,unmatched:unmatched};
+  }
   function catName(cid){var c=state.categories.filter(function(x){return x.id===cid;})[0];return c?c.name:null;}
   function catItems(cid){return allTx().filter(function(t){return t.categoryId===cid;}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
   function catTotal(cid){return catItems(cid).reduce(function(a,b){return a+b.amount;},0);}
@@ -278,6 +307,10 @@
         }}
       else card.classList.add("behind");deck.appendChild(card);})(shown[i],i);}}
   function renderGrid(){var grid=$("#grid");grid.innerHTML="";
+    var ph=paypalHolding();
+    if(ph.length){var pt=document.createElement("div");pt.className="cat paypal";
+      pt.innerHTML='<div class="nm">🅿️ PayPal</div><div class="tot">'+ph.length+' offen</div><div class="cnt">abgleichen · tippen</div>';
+      pt.addEventListener("click",openPaypal);grid.appendChild(pt);}
     state.categories.forEach(function(cat,i){var total=catTotal(cat.id),count=catItems(cat.id).length;
       var box=document.createElement("div");box.className="cat";box.dataset.id=cat.id;
       box.innerHTML='<button class="x" title="Box löschen">✕</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="cnt">'+count+' Einträge · tippen</div>';
@@ -347,7 +380,8 @@
   function ensureTesseract(){if(window.Tesseract)return Promise.resolve(window.Tesseract);return loadScript(TESS_URL).then(function(){return window.Tesseract;});}
   function ocrImage(file){return ensureTesseract().then(function(T){return T.recognize(file,"deu+eng").then(function(r){return r.data.text;});});}
   function addParsedRows(rows){var today=new Date();rows.forEach(function(r){
-    var inc=r.amount>0;state.transactions.push({id:id(),amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense",credited:inc?false:undefined});});}
+    var inc=r.amount>0;var pp=(!inc)&&r.payee&&/paypal/i.test(r.payee);
+    state.transactions.push({id:id(),amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense",credited:inc?false:undefined,awaitPaypal:pp?true:undefined});});}
   function handleFiles(files){if(!files.length)return;
     $("#busy").hidden=false;$("#deck").hidden=true;$("#deck-empty").hidden=true;
     var chain=Promise.resolve(),any=false;
@@ -361,6 +395,33 @@
   $("#file").addEventListener("change",function(e){handleFiles(e.target.files);e.target.value="";});
   $("#blank").addEventListener("click",function(){state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});render();});
   $("#income").addEventListener("click",function(){state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"income",credited:false});render();});
+
+  /* ---------- PayPal reconciliation ---------- */
+  function openPaypal(){
+    var list=$("#pp-list");list.innerHTML="";
+    var ph=paypalHolding();
+    if(!ph.length)list.innerHTML='<div class="m-empty">Kein offener PayPal-Posten.</div>';
+    ph.forEach(function(tx){
+      var row=document.createElement("div");row.className="m-row";
+      row.innerHTML='<div class="p">'+esc(tx.payee||"PayPal")+'<div class="d">'+(tx.date||"")+'</div></div><span class="a">'+fmt(tx.amount)+'</span><button class="back" title="Ohne Abgleich sortieren">↩</button>';
+      row.querySelector(".back").addEventListener("click",function(){tx.awaitPaypal=undefined;render();openPaypal();});
+      list.appendChild(row);
+    });
+    $("#ppmodal").hidden=false;
+  }
+  $("#pp-close").addEventListener("click",function(){$("#ppmodal").hidden=true;});
+  $("#ppmodal").addEventListener("click",function(e){if(e.target===$("#ppmodal"))$("#ppmodal").hidden=true;});
+  $("#pp-file").addEventListener("change",function(e){
+    var f=e.target.files[0];e.target.value="";if(!f)return;
+    $("#pp-hint").textContent="Lese PayPal-Screenshot… 🔎";
+    ocrImage(f).then(function(text){
+      var rows=parseTransactions(text).map(function(r){return {amount:r.amount,payee:r.payee,dateISO:parseDateLabel(r.dateLabel)};});
+      var res=matchPaypal(paypalHolding(),rows,5);
+      res.assignments.forEach(function(a){var tx=state.transactions.filter(function(t){return t.id===a.id;})[0];if(tx){tx.payee=a.merchant;tx.awaitPaypal=undefined;}});
+      render();openPaypal();
+      $("#pp-hint").textContent="Fertig: "+res.assignments.length+" zugeordnet (zurück im Stapel), "+paypalHolding().length+" noch offen"+(res.unmatched.length?", "+res.unmatched.length+" PayPal-Zeile(n) ohne Konto-Gegenstück (ignoriert)":"")+".";
+    }).catch(function(){$("#pp-hint").textContent="OCR nicht verfügbar – bitte online sein und erneut versuchen, oder ↩ zum manuellen Sortieren nutzen.";});
+  });
 
   /* ---------- menu / balance / backup / export ---------- */
   function openMenu(){$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
