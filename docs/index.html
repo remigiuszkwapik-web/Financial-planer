@@ -32,6 +32,9 @@
     -webkit-tap-highlight-color:transparent;line-height:1.4;}
   .app{height:100dvh;max-width:520px;margin:0 auto;padding:14px 16px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;}
   header{display:flex;align-items:stretch;gap:11px;flex:none;}
+  .tabs{flex:none;display:flex;gap:8px;padding:3px;border-radius:15px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
+  .tab{flex:1;border:none;background:transparent;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:.9rem;padding:9px;border-radius:12px;cursor:pointer;}
+  .tab.active{color:var(--ink);background:var(--ground);box-shadow:-3px -3px 6px var(--hl),4px 4px 8px var(--sd);}
   .bal{flex:1;display:flex;flex-direction:column;gap:2px;padding:6px 4px;}
   .bal-lbl{font-size:.66rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink-faint);font-weight:700;}
   .bal-val{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
@@ -130,8 +133,12 @@
 </style>
 
 <div class="app">
+  <div class="tabs">
+    <button class="tab active" id="tab-bank">💳 Konto</button>
+    <button class="tab" id="tab-cash">💵 Bargeld</button>
+  </div>
   <header>
-    <div class="bal"><span class="bal-lbl">Kontostand<span id="count"></span></span><span class="bal-val" id="bal-val">…</span></div>
+    <div class="bal"><span class="bal-lbl"><span id="bal-title">Kontostand</span><span id="count"></span></span><span class="bal-val" id="bal-val">…</span></div>
     <button class="iconbtn" id="analysis-btn" title="Monatsanalyse">📊</button>
     <button class="iconbtn" id="menu-btn" title="Menü">⋯</button>
   </header>
@@ -147,10 +154,11 @@
   </div>
   <div class="grid" id="grid"></div>
   <div class="bar">
-    <label class="btn" for="file"><span>📷</span> Screenshot</label>
+    <label class="btn" id="file-btn" for="file"><span>📷</span> Screenshot</label>
     <input type="file" id="file" accept="image/*" multiple />
     <button class="btn" id="blank"><span>✏️</span> Ausgabe</button>
     <button class="btn" id="income"><span>➕</span> Einnahme</button>
+    <button class="btn" id="withdraw" hidden><span>💵</span> Abheben</button>
   </div>
 </div>
 
@@ -178,7 +186,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-07-05 · Zeitraum-Einstellung</div>
+    <div class="pp-hint" id="app-version">Version: 2026-07-06 · Konto &amp; Bargeld</div>
   </div>
 </div></div>
 
@@ -267,8 +275,9 @@
 
   /* ---------- selectors ---------- */
   function allTx(){return state.transactions;}
-  function unsortedCards(){return allTx().filter(function(t){return (t.kind==="expense"&&t.categoryId==null&&!t.awaitPaypal)||(t.kind==="income"&&t.credited===false);}).sort(function(a,b){var av=a.deckOrder!=null?a.deckOrder:a.id,bv=b.deckOrder!=null?b.deckOrder:b.id;return bv-av;});}
-  function paypalHolding(){return allTx().filter(function(t){return t.awaitPaypal===true;}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
+  function inAcc(t){return (t.account||"bank")===viewAccount;}
+  function unsortedCards(){return allTx().filter(function(t){return inAcc(t)&&((t.kind==="expense"&&t.categoryId==null&&!t.awaitPaypal)||(t.kind==="income"&&t.credited===false));}).sort(function(a,b){var av=a.deckOrder!=null?a.deckOrder:a.id,bv=b.deckOrder!=null?b.deckOrder:b.id;return bv-av;});}
+  function paypalHolding(){return allTx().filter(function(t){return inAcc(t)&&t.awaitPaypal===true;}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
   function matchPaypal(holding,rows,windowDays){
     windowDays=windowDays||5;var assignments=[],unmatched=[];
     function days(a,b){return Math.abs((new Date(a)-new Date(b))/86400000);}
@@ -312,14 +321,18 @@
     if(mode==="calendar"&&/^\d{4}-\d{2}-01$/.test(v)){var p=v.split("-");return MONTHS_DE[+p[1]-1]+" "+p[0];}
     if(/^\d{4}-\d{2}-\d{2}$/.test(v))return "ab "+deLabel(v);
     var p2=v.split("-");return p2.length>=2?(MONTHS_DE[+p2[1]-1]+" "+p2[0]):v;}
-  function catItems(cid){return allTx().filter(function(t){return t.categoryId===cid&&inViewPeriod(t);}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
+  function catItems(cid){return allTx().filter(function(t){return t.categoryId===cid&&inAcc(t)&&inViewPeriod(t);}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
   function catTotal(cid){return catItems(cid).reduce(function(a,b){return a+b.amount;},0);}
-  function periodExpense(){return allTx().reduce(function(s,t){return s+((t.amount<0&&inViewPeriod(t))?-t.amount:0);},0);}
-  function balance(){return state.transactions.reduce(function(a,b){return a+((b.kind==="income"&&b.credited===false)?0:b.amount);},state.startBalance);}
+  function periodExpense(){return allTx().reduce(function(s,t){return s+((t.kind==="expense"&&t.amount<0&&inAcc(t)&&inViewPeriod(t))?-t.amount:0);},0);}
+  function acc(t){return t.account||"bank";}
+  var viewAccount="bank";
+  function accountBalance(a){var start=a==="cash"?(state.cashStart||0):state.startBalance;
+    return state.transactions.reduce(function(s,b){return s+((acc(b)!==a||(b.kind==="income"&&b.credited===false))?0:b.amount);},start);}
+  function balance(){return accountBalance(viewAccount);}
   function colorForName(name){var i=state.categories.map(function(c){return c.name;}).indexOf(name);return i>=0?PALETTE[i%PALETTE.length]:"#9aa0b5";}
   function monthlyReport(){
     var byM={},catM={};
-    allTx().forEach(function(t){var k=(t.date||"").slice(0,7);if(!k)return;
+    allTx().forEach(function(t){if(t.kind==="transfer")return;var k=(t.date||"").slice(0,7);if(!k)return;
       var b=byM[k]||(byM[k]={month:k,income:0,expense:0});
       if(t.amount>=0)b.income+=t.amount; else {b.expense+=-t.amount;var n=t.categoryId?catName(t.categoryId):"Unsortiert";(catM[k]||(catM[k]={}));catM[k][n]=(catM[k][n]||0)+(-t.amount);}});
     var months=Object.keys(byM).map(function(k){var b=byM[k];
@@ -332,26 +345,35 @@
 
   /* ---------- render ---------- */
   var $=function(s){return document.querySelector(s);};
-  function render(){renderBalance();renderMonthbar();renderDeck();renderGrid();save();}
+  function render(){renderBalance();renderMonthbar();renderDeck();renderGrid();renderBar();save();}
   function renderMonthbar(){$("#mb-label").textContent=periodLabel();$("#mb-sum").textContent="Ausgaben: "+fmt(periodExpense());}
   function renderBalance(){var b=balance();var el=$("#bal-val");el.textContent=fmt(b);el.classList.toggle("neg",b<0);
+    $("#bal-title").textContent=viewAccount==="cash"?"Bargeld":"Kontostand";
     var n=unsortedCards().length;$("#count").textContent=n?" · "+n+" offen":"";}
+  function renderBar(){var cash=viewAccount==="cash";$("#file-btn").hidden=cash;$("#withdraw").hidden=!cash;
+    $("#tab-bank").classList.toggle("active",!cash);$("#tab-cash").classList.toggle("active",cash);}
+  function switchAccount(a){if(a===viewAccount)return;viewAccount=a;render();}
   function buildCard(tx){var c=document.createElement("div");c.dataset.id=tx.id;
     var inc=tx.kind==="income";c.className=inc?"card income":"card";
     var head='<div class="crow"><input class="payee" value="'+esc(tx.payee||"")+'" placeholder="'+(inc?"Einnahme, z. B. Gehalt…":"Empfänger…")+'"><button class="kindtog">'+(inc?"Einnahme ⇄":"Ausgabe ⇄")+'</button></div>';
     var amount='<input class="amount" inputmode="decimal" value="'+fmt(inc?Math.abs(tx.amount):tx.amount)+'">';
-    var acts='<div class="actions">'+(inc?'':'<button class="act" data-a="pp" title="Zu PayPal legen">🅿️</button>')+'<button class="act" data-a="skip" title="Später ansehen">⏭</button><button class="act del" data-a="del" title="Löschen">🗑</button></div>';
+    var bankExp=!inc&&(tx.account||"bank")==="bank";
+    var acts='<div class="actions">'+(inc?'':'<button class="act" data-a="pp" title="Zu PayPal legen">🅿️</button>')+(bankExp?'<button class="act" data-a="cash" title="Als Abhebung ins Bargeld">💵</button>':'')+'<button class="act" data-a="skip" title="Später ansehen">⏭</button><button class="act del" data-a="del" title="Löschen">🗑</button></div>';
     c.innerHTML=head+amount+(inc?'<button class="credit">＋ Dem Konto gutschreiben</button>':'')+acts;
     return c;}
   function toggleKind(tx){
     if(tx.kind==="income"){tx.kind="expense";tx.amount=-Math.abs(tx.amount);tx.credited=undefined;tx.categoryId=null;}
     else{tx.kind="income";tx.amount=Math.abs(tx.amount);tx.credited=false;tx.categoryId=null;}
     render();}
-  function deleteTx(id2){state.transactions=state.transactions.filter(function(t){return t.id!==id2;});}
+  function deleteTx(id2){var t=state.transactions.filter(function(x){return x.id===id2;})[0];var tid=t&&t.transferId;
+    state.transactions=state.transactions.filter(function(x){return x.id!==id2&&(!tid||x.transferId!==tid);});}
   function doAction(tx,a){
-    if(a==="del"){if(confirm("Diese Buchung wirklich löschen?")){deleteTx(tx.id);render();}}
+    if(a==="del"){if(confirm(tx.transferId?"Diese Abhebung (Konto + Bargeld) löschen?":"Diese Buchung wirklich löschen?")){deleteTx(tx.id);render();}}
     else if(a==="skip"){state.orderFloor=(state.orderFloor||0)-1;tx.deckOrder=state.orderFloor;render();}
-    else if(a==="pp"){tx.awaitPaypal=true;tx.categoryId=null;render();}}
+    else if(a==="pp"){tx.awaitPaypal=true;tx.categoryId=null;render();}
+    else if(a==="cash"){var amt=Math.abs(tx.amount);if(amt<=0){alert("Bitte erst einen Betrag eintragen.");return;}
+      var tid=id();tx.kind="transfer";tx.transferId=tid;tx.categoryId=null;tx.awaitPaypal=undefined;
+      state.transactions.push({id:id(),account:"cash",kind:"transfer",amount:amt,payee:"Abhebung",date:tx.date||todayISO(),transferId:tid});render();}}
   function renderDeck(){var deck=$("#deck");deck.innerHTML="";var cards=unsortedCards();var empty=cards.length===0;
     $("#deck-empty").hidden=!empty||!$("#busy").hidden;deck.hidden=empty;
     var shown=cards.slice(0,3);
@@ -450,7 +472,7 @@
   function ocrImage(file){return ensureTesseract().then(function(T){return T.recognize(file,"deu+eng").then(function(r){return r.data.text;});});}
   function addParsedRows(rows){var today=new Date();rows.forEach(function(r){
     var inc=r.amount>0;var pp=(!inc)&&r.payee&&/paypal/i.test(r.payee);
-    state.transactions.push({id:id(),amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense",credited:inc?false:undefined,awaitPaypal:pp?true:undefined});});}
+    state.transactions.push({id:id(),account:"bank",amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense",credited:inc?false:undefined,awaitPaypal:pp?true:undefined});});}
   function handleFiles(files){if(!files.length)return;
     $("#busy").hidden=false;$("#deck").hidden=true;$("#deck-empty").hidden=true;
     var chain=Promise.resolve(),any=false;
@@ -462,8 +484,20 @@
         state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});});});});
     chain.then(function(){$("#busy").hidden=true;render();});}
   $("#file").addEventListener("change",function(e){handleFiles(e.target.files);e.target.value="";});
-  $("#blank").addEventListener("click",function(){state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});render();});
-  $("#income").addEventListener("click",function(){state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"income",credited:false});render();});
+  $("#blank").addEventListener("click",function(){state.transactions.push({id:id(),account:viewAccount,amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});render();});
+  $("#income").addEventListener("click",function(){state.transactions.push({id:id(),account:viewAccount,amount:0,payee:null,date:todayISO(),categoryId:null,kind:"income",credited:false});render();});
+  $("#withdraw").addEventListener("click",function(){var t=prompt("Wie viel Bargeld abheben? (€)");if(t==null)return;var x=Math.abs(toCents(t));if(x<=0){alert("Bitte einen Betrag eingeben.");return;}
+    var tid=id();
+    state.transactions.push({id:id(),account:"bank",kind:"transfer",amount:-x,payee:"Abhebung",date:todayISO(),transferId:tid});
+    state.transactions.push({id:id(),account:"cash",kind:"transfer",amount:x,payee:"Abhebung",date:todayISO(),transferId:tid});
+    render();});
+  $("#tab-bank").addEventListener("click",function(){switchAccount("bank");});
+  $("#tab-cash").addEventListener("click",function(){switchAccount("cash");});
+  // horizontal swipe on the top area switches account (cards/grid keep their own gestures)
+  (function(){var sx=0,sy=0,tracking=false;var app=document.querySelector(".app");
+    app.addEventListener("pointerdown",function(e){if(e.target.closest(".card,.grid,.modal,input,button,.bar"))return;sx=e.clientX;sy=e.clientY;tracking=true;});
+    app.addEventListener("pointerup",function(e){if(!tracking)return;tracking=false;var dx=e.clientX-sx,dy=e.clientY-sy;
+      if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)switchAccount(dx<0?"cash":"bank");});})();
 
   /* ---------- PayPal reconciliation ---------- */
   function openPaypal(){
@@ -504,7 +538,9 @@
   $("#menu-btn").addEventListener("click",openMenu);
   $("#menu-close").addEventListener("click",closeMenu);
   $("#menu").addEventListener("click",function(e){if(e.target===$("#menu"))closeMenu();});
-  $("#mi-balance").addEventListener("click",function(){closeMenu();var input=prompt("Aktueller Kontostand (€):",(balance()/100).toFixed(2).replace(".",","));if(input==null)return;state.startBalance+=(toCents(input)-balance());render();});
+  $("#mi-balance").addEventListener("click",function(){closeMenu();var cash=viewAccount==="cash";var cur=accountBalance(viewAccount);
+    var input=prompt((cash?"Aktueller Bargeld-Bestand":"Aktueller Kontostand")+" (€):",(cur/100).toFixed(2).replace(".",","));if(input==null)return;
+    var diff=toCents(input)-cur;if(cash)state.cashStart=(state.cashStart||0)+diff;else state.startBalance+=diff;render();});
   $("#mi-reset").addEventListener("click",function(){if(confirm("Alle Einträge und Kategorien löschen? Die App startet danach leer.")){state=freshState();viewPeriod=periodStart(todayISO());render();}closeMenu();});
   function openPeriod(){updatePerStatus();$("#permodal").hidden=false;}
   function closePeriod(){$("#permodal").hidden=true;}
@@ -519,12 +555,12 @@
   $("#per-day").addEventListener("click",function(){var t=prompt("An welchem Tag im Monat beginnt der Zeitraum? (1–28)",String(state.periodStartDay||1));if(t==null)return;var d=Math.max(1,Math.min(28,parseInt(t,10)||1));state.periodMode="day";state.periodStartDay=d;setPeriod();});
   function download(name,text,mime){var b=new Blob([text],{type:mime}),u=URL.createObjectURL(b);var a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},1000);}
   function plain(c){return (c/100).toFixed(2).replace(".",",");}
-  $("#mi-csv").addEventListener("click",function(){closeMenu();var rows=[["Datum","Kategorie","Empfaenger","Betrag"]];
-    allTx().forEach(function(t){rows.push([t.date||"",t.categoryId?catName(t.categoryId):(t.amount>0?"Einnahme":""),t.payee||"",plain(t.amount)]);});
+  $("#mi-csv").addEventListener("click",function(){closeMenu();var rows=[["Datum","Konto","Kategorie","Empfaenger","Betrag"]];
+    allTx().forEach(function(t){var k=t.kind==="transfer"?"Umbuchung":(t.categoryId?catName(t.categoryId):(t.amount>0?"Einnahme":""));rows.push([t.date||"",(t.account||"bank")==="cash"?"Bargeld":"Konto",k,t.payee||"",plain(t.amount)]);});
     var csv="﻿"+rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(";");}).join("\r\n");
     download("finanzen.csv",csv,"text/csv");});
   $("#mi-md").addEventListener("click",function(){closeMenu();var rep=monthlyReport();
-    var L=["# Finanzübersicht","","**Kontostand:** "+plain(balance())+" €","","## Monatsübersicht","","| Monat | Einnahmen | Ausgaben | Netto | Größter Posten |","| --- | ---: | ---: | ---: | --- |"];
+    var L=["# Finanzübersicht","","**Konto:** "+plain(accountBalance("bank"))+" €  ·  **Bargeld:** "+plain(accountBalance("cash"))+" €","","## Monatsübersicht","","| Monat | Einnahmen | Ausgaben | Netto | Größter Posten |","| --- | ---: | ---: | ---: | --- |"];
     rep.months.forEach(function(m){L.push("| "+monthLabel(m.month)+" | "+plain(m.income)+" | "+plain(m.expense)+" | "+plain(m.net)+" | "+(m.top||"—")+" |");});
     download("finanzen.md",L.join("\n")+"\n","text/markdown");});
   $("#mi-backup").addEventListener("click",function(){closeMenu();download("finanzen-backup.json",JSON.stringify(state,null,2),"application/json");});
@@ -543,6 +579,7 @@
     if(!state.periodMode)state.periodMode="calendar";                 // default: unchanged calendar month
     if(typeof state.salaryThreshold!=="number")state.salaryThreshold=260000;
     if(typeof state.periodStartDay!=="number")state.periodStartDay=1;
+    if(typeof state.cashStart!=="number")state.cashStart=0;
     if(!state.nextId){var mx=0;(state.transactions||[]).concat(state.categories||[]).forEach(function(o){if(o.id>mx)mx=o.id;});state.nextId=mx+1;}
     viewPeriod=periodStart(todayISO());render();});
 })();
