@@ -170,6 +170,7 @@
   <div class="sheet-head"><span class="t">Menü</span><button class="iconbtn sm" id="menu-close">✕</button></div>
   <div class="sheet-list">
     <div class="menu-item" id="mi-balance">💰 Kontostand setzen</div>
+    <div class="menu-item" id="mi-period">🗓 Zeitraum einstellen</div>
     <div class="menu-item" id="mi-csv">⬇ Excel (CSV) exportieren</div>
     <div class="menu-item" id="mi-md">⬇ Markdown exportieren</div>
     <div class="menu-item" id="mi-backup">💾 Backup speichern</div>
@@ -177,7 +178,18 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-07-05 · Monatsansicht</div>
+    <div class="pp-hint" id="app-version">Version: 2026-07-05 · Zeitraum-Einstellung</div>
+  </div>
+</div></div>
+
+<div class="modal" id="permodal" hidden><div class="sheet">
+  <div class="sheet-head"><span class="t">🗓 Zeitraum</span><button class="iconbtn sm" id="per-close">✕</button></div>
+  <div class="pp-hint">Wie wird ein Zeitraum auf der Hauptseite definiert?</div>
+  <div class="sheet-list">
+    <div class="menu-item" id="per-calendar">🗓 Kalendermonat (1. bis Monatsende)</div>
+    <div class="menu-item" id="per-salary">💶 Ab Gehaltseingang (über Schwelle)</div>
+    <div class="menu-item" id="per-day">📅 Fester Stichtag im Monat</div>
+    <div class="pp-hint" id="per-status"></div>
   </div>
 </div></div>
 
@@ -274,12 +286,35 @@
     return {assignments:assignments,unmatched:unmatched};
   }
   function catName(cid){var c=state.categories.filter(function(x){return x.id===cid;})[0];return c?c.name:null;}
-  var viewMonth=todayISO().slice(0,7);
-  function inViewMonth(t){return (t.date||"").slice(0,7)===viewMonth;}
-  function shiftMonth(d){var y=+viewMonth.slice(0,4),m=+viewMonth.slice(5,7)-1+d;viewMonth=new Date(Date.UTC(y,m,1)).toISOString().slice(0,7);render();}
-  function catItems(cid){return allTx().filter(function(t){return t.categoryId===cid&&inViewMonth(t);}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
+  /* ---- billing period: calendar | day (fixed start day) | salary (income >= threshold) ---- */
+  function salaryDates(){return allTx().filter(function(t){return t.kind==="income"&&t.credited!==false&&t.amount>=(state.salaryThreshold||260000);}).map(function(t){return t.date;}).filter(Boolean).sort();}
+  function periodStart(dateISO){
+    if(!dateISO)dateISO=todayISO();
+    var mode=state.periodMode||"salary";
+    if(mode==="salary"){
+      var sd=salaryDates();
+      if(!sd.length)mode="calendar";                 // fallback until a salary is credited
+      else{var start="";for(var i=0;i<sd.length;i++){if(sd[i]<=dateISO)start=sd[i];else break;}
+        return start||"0000-00-00";}                   // before the first salary = leading bucket (sorts first)
+    }
+    if(mode==="day"){var day=state.periodStartDay||1,y=+dateISO.slice(0,4),m=+dateISO.slice(5,7)-1,d=+dateISO.slice(8,10);
+      if(d<day)m-=1;return new Date(Date.UTC(y,m,day)).toISOString().slice(0,10);}
+    return dateISO.slice(0,7)+"-01";                   // calendar
+  }
+  var viewPeriod=null;                                 // set in init once state is loaded
+  function inViewPeriod(t){return periodStart(t.date)===viewPeriod;}
+  function periodStartsList(){var set={};allTx().forEach(function(t){if(t.date)set[periodStart(t.date)]=1;});set[periodStart(todayISO())]=1;return Object.keys(set).sort();}
+  function shiftPeriod(dir){var list=periodStartsList(),i=list.indexOf(viewPeriod);if(i<0){viewPeriod=periodStart(todayISO());render();return;}var j=i+dir;if(j<0||j>=list.length)return;viewPeriod=list[j];render();}
+  function deLabel(iso){var p=iso.split("-");return p[2]+"."+p[1]+"."+p[0];}
+  function periodLabel(){var mode=state.periodMode||"calendar",v=viewPeriod||"";
+    if(mode==="salary"&&!salaryDates().length)mode="calendar";
+    if(v==="0000-00-00")return "früher";
+    if(mode==="calendar"&&/^\d{4}-\d{2}-01$/.test(v)){var p=v.split("-");return MONTHS_DE[+p[1]-1]+" "+p[0];}
+    if(/^\d{4}-\d{2}-\d{2}$/.test(v))return "ab "+deLabel(v);
+    var p2=v.split("-");return p2.length>=2?(MONTHS_DE[+p2[1]-1]+" "+p2[0]):v;}
+  function catItems(cid){return allTx().filter(function(t){return t.categoryId===cid&&inViewPeriod(t);}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
   function catTotal(cid){return catItems(cid).reduce(function(a,b){return a+b.amount;},0);}
-  function monthExpense(){return allTx().reduce(function(s,t){return s+((t.amount<0&&inViewMonth(t))?-t.amount:0);},0);}
+  function periodExpense(){return allTx().reduce(function(s,t){return s+((t.amount<0&&inViewPeriod(t))?-t.amount:0);},0);}
   function balance(){return state.transactions.reduce(function(a,b){return a+((b.kind==="income"&&b.credited===false)?0:b.amount);},state.startBalance);}
   function colorForName(name){var i=state.categories.map(function(c){return c.name;}).indexOf(name);return i>=0?PALETTE[i%PALETTE.length]:"#9aa0b5";}
   function monthlyReport(){
@@ -298,7 +333,7 @@
   /* ---------- render ---------- */
   var $=function(s){return document.querySelector(s);};
   function render(){renderBalance();renderMonthbar();renderDeck();renderGrid();save();}
-  function renderMonthbar(){var p=viewMonth.split("-");$("#mb-label").textContent=MONTHS_DE[+p[1]-1]+" "+p[0];$("#mb-sum").textContent="Ausgaben: "+fmt(monthExpense());}
+  function renderMonthbar(){$("#mb-label").textContent=periodLabel();$("#mb-sum").textContent="Ausgaben: "+fmt(periodExpense());}
   function renderBalance(){var b=balance();var el=$("#bal-val");el.textContent=fmt(b);el.classList.toggle("neg",b<0);
     var n=unsortedCards().length;$("#count").textContent=n?" · "+n+" offen":"";}
   function buildCard(tx){var c=document.createElement("div");c.dataset.id=tx.id;
@@ -338,11 +373,11 @@
   function renderGrid(){var grid=$("#grid");grid.innerHTML="";
     var ph=paypalHolding();
     if(ph.length){var pt=document.createElement("div");pt.className="cat paypal";
-      pt.innerHTML='<div class="nm">🅿️ PayPal</div><div class="tot">'+ph.length+' offen</div><div class="cnt">abgleichen · tippen</div>';
+      pt.innerHTML='<div class="nm">🅿️ PayPal</div><div class="tot">'+ph.length+' offen</div><div class="cnt">zum Abgleichen</div>';
       pt.addEventListener("click",openPaypal);grid.appendChild(pt);}
     state.categories.forEach(function(cat,i){var total=catTotal(cat.id),count=catItems(cat.id).length;
       var box=document.createElement("div");box.className="cat";box.dataset.id=cat.id;
-      box.innerHTML='<button class="x" title="Box löschen">✕</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="cnt">'+count+' Einträge · tippen</div>';
+      box.innerHTML='<button class="x" title="Box löschen">✕</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="cnt">'+count+' Einträge</div>';
       box.addEventListener("click",function(){openCategory(cat.id,cat.name,i);});
       box.querySelector(".x").addEventListener("click",function(e){e.stopPropagation();
         if(count&&!confirm('"'+cat.name+'" löschen? Einträge wandern zurück in den Stapel.'))return;
@@ -404,8 +439,8 @@
     $("#analysis").hidden=false;}
   function monthLabel(k){var p=k.split("-");return MONTHS_DE[parseInt(p[1],10)-1]+" "+p[0];}
   $("#analysis-btn").addEventListener("click",openAnalysis);
-  $("#m-prev").addEventListener("click",function(){shiftMonth(-1);});
-  $("#m-next").addEventListener("click",function(){shiftMonth(1);});
+  $("#m-prev").addEventListener("click",function(){shiftPeriod(-1);});
+  $("#m-next").addEventListener("click",function(){shiftPeriod(1);});
   $("#a-close").addEventListener("click",function(){$("#analysis").hidden=true;});
   $("#analysis").addEventListener("click",function(e){if(e.target===$("#analysis"))$("#analysis").hidden=true;});
 
@@ -470,7 +505,18 @@
   $("#menu-close").addEventListener("click",closeMenu);
   $("#menu").addEventListener("click",function(e){if(e.target===$("#menu"))closeMenu();});
   $("#mi-balance").addEventListener("click",function(){closeMenu();var input=prompt("Aktueller Kontostand (€):",(balance()/100).toFixed(2).replace(".",","));if(input==null)return;state.startBalance+=(toCents(input)-balance());render();});
-  $("#mi-reset").addEventListener("click",function(){if(confirm("Alle Einträge und Kategorien löschen? Die App startet danach leer.")){state=freshState();render();}closeMenu();});
+  $("#mi-reset").addEventListener("click",function(){if(confirm("Alle Einträge und Kategorien löschen? Die App startet danach leer.")){state=freshState();viewPeriod=periodStart(todayISO());render();}closeMenu();});
+  function openPeriod(){updatePerStatus();$("#permodal").hidden=false;}
+  function closePeriod(){$("#permodal").hidden=true;}
+  function updatePerStatus(){var m=state.periodMode||"calendar";
+    $("#per-status").textContent="Aktuell: "+(m==="salary"?("ab Gehalt über "+fmt(state.salaryThreshold||260000)):m==="day"?("fester Stichtag am "+(state.periodStartDay||1)+"."):"Kalendermonat");}
+  function setPeriod(){viewPeriod=periodStart(todayISO());render();updatePerStatus();}
+  $("#mi-period").addEventListener("click",function(){closeMenu();openPeriod();});
+  $("#per-close").addEventListener("click",closePeriod);
+  $("#permodal").addEventListener("click",function(e){if(e.target===$("#permodal"))closePeriod();});
+  $("#per-calendar").addEventListener("click",function(){state.periodMode="calendar";setPeriod();});
+  $("#per-salary").addEventListener("click",function(){var t=prompt("Neuer Zeitraum startet ab einer Einnahme über (€):",((state.salaryThreshold||260000)/100).toFixed(2).replace(".",","));if(t==null)return;var c=Math.abs(toCents(t));if(c<=0){alert("Bitte einen Betrag eingeben.");return;}state.periodMode="salary";state.salaryThreshold=c;setPeriod();});
+  $("#per-day").addEventListener("click",function(){var t=prompt("An welchem Tag im Monat beginnt der Zeitraum? (1–28)",String(state.periodStartDay||1));if(t==null)return;var d=Math.max(1,Math.min(28,parseInt(t,10)||1));state.periodMode="day";state.periodStartDay=d;setPeriod();});
   function download(name,text,mime){var b=new Blob([text],{type:mime}),u=URL.createObjectURL(b);var a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},1000);}
   function plain(c){return (c/100).toFixed(2).replace(".",",");}
   $("#mi-csv").addEventListener("click",function(){closeMenu();var rows=[["Datum","Kategorie","Empfaenger","Betrag"]];
@@ -493,7 +539,12 @@
   if(navigator.storage&&navigator.storage.persist){try{navigator.storage.persist();}catch(e){}}
 
   /* ---------- init ---------- */
-  loadState().then(function(s){state=(s&&s.transactions)?s:freshState();if(typeof state.startBalance!=="number")state.startBalance=0;if(!state.nextId){var mx=0;(state.transactions||[]).concat(state.categories||[]).forEach(function(o){if(o.id>mx)mx=o.id;});state.nextId=mx+1;}render();});
+  loadState().then(function(s){state=(s&&s.transactions)?s:freshState();if(typeof state.startBalance!=="number")state.startBalance=0;
+    if(!state.periodMode)state.periodMode="calendar";                 // default: unchanged calendar month
+    if(typeof state.salaryThreshold!=="number")state.salaryThreshold=260000;
+    if(typeof state.periodStartDay!=="number")state.periodStartDay=1;
+    if(!state.nextId){var mx=0;(state.transactions||[]).concat(state.categories||[]).forEach(function(o){if(o.id>mx)mx=o.id;});state.nextId=mx+1;}
+    viewPeriod=periodStart(todayISO());render();});
 })();
 </script>
 
