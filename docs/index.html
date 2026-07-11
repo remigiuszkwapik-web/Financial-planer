@@ -179,6 +179,7 @@
   <div class="sheet-list">
     <div class="menu-item" id="mi-balance">💰 Kontostand setzen</div>
     <div class="menu-item" id="mi-period">🗓 Zeitraum einstellen</div>
+    <div class="menu-item" id="mi-clean">🧹 Empfänger bereinigen</div>
     <div class="menu-item" id="mi-csv">⬇ Excel (CSV) exportieren</div>
     <div class="menu-item" id="mi-md">⬇ Markdown exportieren</div>
     <div class="menu-item" id="mi-backup">💾 Backup speichern</div>
@@ -186,7 +187,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-07-06 · Fixes (Geist &amp; OCR)</div>
+    <div class="pp-hint" id="app-version">Version: 2026-07-06 · Empfänger bereinigen</div>
   </div>
 </div></div>
 
@@ -556,6 +557,7 @@
     $("#per-status").textContent="Aktuell: "+(m==="salary"?("ab Gehalt über "+fmt(state.salaryThreshold||260000)):m==="day"?("fester Stichtag am "+(state.periodStartDay||1)+"."):"Kalendermonat");}
   function setPeriod(){viewPeriod=periodStart(todayISO());render();updatePerStatus();}
   $("#mi-period").addEventListener("click",function(){closeMenu();openPeriod();});
+  $("#mi-clean").addEventListener("click",function(){closeMenu();var n=0;allTx().forEach(function(t){if(t.payee){var c=cleanPayee(t.payee);if(c&&c!==t.payee){t.payee=c;n++;}}});render();alert(n+" Empfänger bereinigt (Icon-Zeichen entfernt).");});
   $("#per-close").addEventListener("click",closePeriod);
   $("#permodal").addEventListener("click",function(e){if(e.target===$("#permodal"))closePeriod();});
   $("#per-calendar").addEventListener("click",function(){state.periodMode="calendar";setPeriod();});
