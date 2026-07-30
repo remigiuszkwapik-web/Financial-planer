@@ -48,6 +48,7 @@
   .monthbar .mb-mid{flex:1;text-align:center;display:flex;flex-direction:column;gap:1px;}
   .monthbar #mb-label{font-weight:700;font-size:1rem;}
   .monthbar #mb-sum{font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .lastbar{flex:none;text-align:center;font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums;margin:-4px 0 -2px;}
   .deck-area{flex:1 1 auto;position:relative;min-height:150px;display:flex;align-items:center;}
   .deck{position:relative;width:100%;height:158px;}
   .card{position:absolute;inset:0;border-radius:var(--r);background:var(--card-bg);color:var(--card-ink);box-shadow:var(--card-shadow);
@@ -147,6 +148,7 @@
     <div class="mb-mid"><span id="mb-label">—</span><span id="mb-sum"></span></div>
     <button class="iconbtn sm" id="m-next">›</button>
   </div>
+  <div class="lastbar" id="lastbar" hidden></div>
   <div class="deck-area">
     <div class="deck" id="deck"></div>
     <div class="deck-empty" id="deck-empty" hidden>Keine offenen Ausgaben 🎉<br>Lade einen Screenshot hoch.</div>
@@ -187,7 +189,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-07-06 · Empfänger bereinigen</div>
+    <div class="pp-hint" id="app-version">Version: 2026-07-11 · Neueste Buchung</div>
   </div>
 </div></div>
 
@@ -351,8 +353,13 @@
 
   /* ---------- render ---------- */
   var $=function(s){return document.querySelector(s);};
-  function render(){renderBalance();renderMonthbar();renderDeck();renderGrid();renderBar();save();}
-  function renderSoft(){renderBalance();renderMonthbar();renderGrid();renderBar();save();} // update everything except the deck (keeps the card being edited/dragged in place)
+  function lastBooking(){var best=null;allTx().forEach(function(t){if(!inAcc(t)||!t.date)return;
+    if(!best||t.date>best.date||(t.date===best.date&&t.id>best.id))best=t;});return best;}
+  function renderLast(){var el=$("#lastbar");var b=lastBooking();
+    if(!b){el.hidden=true;return;}
+    el.hidden=false;el.textContent="🕘 Neueste Buchung: "+deLabel(b.date)+" · "+(b.payee||"—")+" "+fmt(b.amount);}
+  function render(){renderBalance();renderMonthbar();renderLast();renderDeck();renderGrid();renderBar();save();}
+  function renderSoft(){renderBalance();renderMonthbar();renderLast();renderGrid();renderBar();save();} // update everything except the deck (keeps the card being edited/dragged in place)
   function renderMonthbar(){$("#mb-label").textContent=periodLabel();$("#mb-sum").textContent="Ausgaben: "+fmt(periodExpense());}
   function renderBalance(){var b=balance();var el=$("#bal-val");el.textContent=fmt(b);el.classList.toggle("neg",b<0);
     $("#bal-title").textContent=viewAccount==="cash"?"Bargeld":"Kontostand";
