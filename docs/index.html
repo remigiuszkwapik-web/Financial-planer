@@ -136,6 +136,14 @@
   .savechart{width:100%;height:auto;display:block;border-radius:16px;padding:6px 4px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   .savechart .cx{fill:var(--ink-faint);font-size:9px;font-family:inherit;}
   .savechart .cv{fill:var(--ink-soft);font-size:11px;font-weight:700;font-family:inherit;}
+  .savechart .hit{cursor:pointer;}
+  .savechart .sv-tip{display:none;}
+  .savechart .sv-tip.show{display:block;}
+  .savechart .sv-cross{stroke:var(--ink-faint);stroke-width:1;stroke-dasharray:3 3;}
+  .savechart .sv-ring{fill:none;stroke:#2fb98f;stroke-width:2.5;}
+  .savechart .sv-bub{fill:var(--hl);stroke:var(--sd);stroke-width:1;}
+  .savechart .sv-t1{fill:var(--ink);font-size:11px;font-weight:700;font-family:inherit;}
+  .savechart .sv-t2{fill:var(--ink-soft);font-size:9px;font-family:inherit;}
   .sv-empty{color:var(--ink-faint);font-style:italic;text-align:center;padding:22px 8px;border-radius:16px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   .sv-h{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;margin:2px 2px -4px;}
   [hidden]{display:none!important;}
@@ -217,7 +225,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-07-30 · Sparkonto</div>
+    <div class="pp-hint" id="app-version">Version: 2026-07-30 · Sparkonto-Punkte</div>
   </div>
 </div></div>
 
@@ -400,9 +408,12 @@
     var step=Math.ceil(n/6);var xl=points.map(function(p,i){if(n>6&&i%step!==0&&i!==n-1)return "";return '<text class="cx" x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+MONTHS_DE[+p.month.slice(5,7)-1].slice(0,3)+'</text>';}).join("");
     var lastY=Y(points[n-1].balance),anchor=X(n-1)>W*0.7?"end":"start";
     var lab='<text class="cv" x="'+X(n-1).toFixed(1)+'" y="'+(lastY-7).toFixed(1)+'" text-anchor="'+anchor+'">'+fmt(points[n-1].balance)+'</text>';
+    // large invisible tap targets carry the values for the tooltip
+    var hits=points.map(function(p,i){return '<circle class="hit" data-i="'+i+'" cx="'+X(i).toFixed(1)+'" cy="'+Y(p.balance).toFixed(1)+'" r="14" fill="transparent" data-m="'+esc(monthLabel(p.month))+'" data-v="'+esc(fmt(p.balance))+'" data-d="'+esc((p.net>0?"+":"")+fmt(p.net))+'"/>';}).join("");
+    var tip='<g class="sv-tip"><line class="sv-cross" y1="'+padT+'" y2="'+(H-padB)+'"/><circle class="sv-ring" r="4.5"/><rect class="sv-bub" rx="6" ry="6"/><text class="sv-t1"></text><text class="sv-t2"></text></g>';
     return '<svg class="savechart" viewBox="0 0 '+W+' '+H+'"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fb98f" stop-opacity=".33"/><stop offset="1" stop-color="#2fb98f" stop-opacity="0"/></linearGradient></defs>'
       +'<path d="'+area+'" fill="url(#sg)"/><path d="'+line+'" fill="none" stroke="#2fb98f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
-      +'<g fill="#2fb98f">'+dots+'</g>'+xl+lab+'</svg>';}
+      +'<g fill="#2fb98f">'+dots+'</g>'+xl+lab+hits+tip+'</svg>';}
 
   /* ---------- render ---------- */
   var $=function(s){return document.querySelector(s);};
@@ -589,6 +600,24 @@
     state.transactions.push({id:id(),account:"savings",kind:"expense",amount:-x,payee:"Abhebung",date:todayISO(),categoryId:null});save();renderSavingsSheet();});
   $("#sv-setbal").addEventListener("click",function(){var cur=accountBalance("savings");var t=prompt("Aktueller Sparkonto-Stand (€):",(cur/100).toFixed(2).replace(".",","));if(t==null)return;var diff=toCents(t)-cur;state.savingsStart=(state.savingsStart||0)+diff;save();renderSavingsSheet();});
   $("#sv-file").addEventListener("change",function(e){handleSavingsFiles(e.target.files);e.target.value="";});
+  function svShowTip(svg,hit){var W=340,cx=parseFloat(hit.getAttribute("cx")),cy=parseFloat(hit.getAttribute("cy"));
+    var v=hit.getAttribute("data-v"),m=hit.getAttribute("data-m"),d=hit.getAttribute("data-d"),line2=m+"   "+d;
+    var tip=svg.querySelector(".sv-tip"),cross=tip.querySelector(".sv-cross"),ring=tip.querySelector(".sv-ring"),
+        bub=tip.querySelector(".sv-bub"),t1=tip.querySelector(".sv-t1"),t2=tip.querySelector(".sv-t2");
+    cross.setAttribute("x1",cx);cross.setAttribute("x2",cx);ring.setAttribute("cx",cx);ring.setAttribute("cy",cy);
+    t1.textContent=v;t2.textContent=line2;
+    var w=Math.max(v.length*6.2,line2.length*5)+16,h=30;
+    var by=cy>54?(cy-h-9):(cy+9);var bx=cx-w/2;if(bx<2)bx=2;if(bx+w>W-2)bx=W-2-w;
+    bub.setAttribute("x",bx);bub.setAttribute("y",by);bub.setAttribute("width",w);bub.setAttribute("height",h);
+    var tcx=(bx+w/2).toFixed(1);
+    t1.setAttribute("x",tcx);t1.setAttribute("y",(by+13).toFixed(1));t1.setAttribute("text-anchor","middle");
+    t2.setAttribute("x",tcx);t2.setAttribute("y",(by+24).toFixed(1));t2.setAttribute("text-anchor","middle");
+    tip.setAttribute("data-i",hit.getAttribute("data-i"));tip.classList.add("show");}
+  $("#sv-chart").addEventListener("pointerdown",function(e){var svg=$("#sv-chart").querySelector(".savechart");if(!svg)return;
+    var tip=svg.querySelector(".sv-tip"),hit=e.target.closest(".hit");
+    if(hit){if(tip.classList.contains("show")&&tip.getAttribute("data-i")===hit.getAttribute("data-i"))tip.classList.remove("show");
+      else svShowTip(svg,hit);}
+    else tip.classList.remove("show");});
 
   /* ---------- OCR ---------- */
   function loadScript(src){return new Promise(function(res,rej){var s=document.createElement("script");s.src=src;s.onload=res;s.onerror=function(){rej(new Error("load failed"));};document.head.appendChild(s);});}
