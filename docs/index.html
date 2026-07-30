@@ -129,6 +129,15 @@
   .month .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.72rem;color:var(--ink-soft);}
   .month .legend span{display:flex;align-items:center;gap:5px;}
   .month .legend .dot{width:8px;height:8px;border-radius:50%;}
+  .sv-actions{display:flex;gap:9px;}
+  .sv-actions .btn{flex:1;border:none;border-radius:15px;background:var(--ground);color:var(--ink);padding:12px 6px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;
+    display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
+  .sv-actions .btn:active{box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
+  .savechart{width:100%;height:auto;display:block;border-radius:16px;padding:6px 4px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
+  .savechart .cx{fill:var(--ink-faint);font-size:9px;font-family:inherit;}
+  .savechart .cv{fill:var(--ink-soft);font-size:11px;font-weight:700;font-family:inherit;}
+  .sv-empty{color:var(--ink-faint);font-style:italic;text-align:center;padding:22px 8px;border-radius:16px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
+  .sv-h{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;margin:2px 2px -4px;}
   [hidden]{display:none!important;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
@@ -176,10 +185,29 @@
   <div class="sheet-list" id="a-list"></div>
 </div></div>
 
+<div class="modal" id="savemodal" hidden><div class="sheet tall">
+  <div class="sheet-head"><span class="t">🐷 Sparkonto</span><button class="iconbtn sm" id="sv-close">✕</button></div>
+  <div class="sheet-total" id="sv-balance"></div>
+  <div id="sv-chart"></div>
+  <div class="a-highlights" id="sv-quote"></div>
+  <div class="sv-actions">
+    <label class="btn" for="sv-file"><span>📷</span> Screenshot</label>
+    <input type="file" id="sv-file" accept="image/*" multiple />
+    <button class="btn" id="sv-in"><span>➕</span> Einzahlung</button>
+    <button class="btn" id="sv-out"><span>➖</span> Abhebung</button>
+  </div>
+  <div class="sv-actions">
+    <button class="btn" id="sv-unit">€ ⇄ %</button>
+    <button class="btn" id="sv-setbal"><span>🎯</span> Stand setzen</button>
+  </div>
+  <div class="sheet-list" id="sv-list"></div>
+</div></div>
+
 <div class="modal" id="menu" hidden><div class="sheet">
   <div class="sheet-head"><span class="t">Menü</span><button class="iconbtn sm" id="menu-close">✕</button></div>
   <div class="sheet-list">
     <div class="menu-item" id="mi-balance">💰 Kontostand setzen</div>
+    <div class="menu-item" id="mi-savings">🐷 Sparkonto</div>
     <div class="menu-item" id="mi-period">🗓 Zeitraum einstellen</div>
     <div class="menu-item" id="mi-clean">🧹 Empfänger bereinigen</div>
     <div class="menu-item" id="mi-csv">⬇ Excel (CSV) exportieren</div>
@@ -189,7 +217,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-07-11 · Neueste Buchung</div>
+    <div class="pp-hint" id="app-version">Version: 2026-07-30 · Sparkonto</div>
   </div>
 </div></div>
 
@@ -334,13 +362,13 @@
   function periodExpense(){return allTx().reduce(function(s,t){return s+((t.kind==="expense"&&t.amount<0&&inAcc(t)&&inViewPeriod(t))?-t.amount:0);},0);}
   function acc(t){return t.account||"bank";}
   var viewAccount="bank";
-  function accountBalance(a){var start=a==="cash"?(state.cashStart||0):state.startBalance;
+  function accountBalance(a){var start=a==="cash"?(state.cashStart||0):a==="savings"?(state.savingsStart||0):state.startBalance;
     return state.transactions.reduce(function(s,b){return s+((acc(b)!==a||(b.kind==="income"&&b.credited===false))?0:b.amount);},start);}
   function balance(){return accountBalance(viewAccount);}
   function colorForName(name){var i=state.categories.map(function(c){return c.name;}).indexOf(name);return i>=0?PALETTE[i%PALETTE.length]:"#9aa0b5";}
   function monthlyReport(){
     var byM={},catM={};
-    allTx().forEach(function(t){if(t.kind==="transfer")return;var k=(t.date||"").slice(0,7);if(!k)return;
+    allTx().forEach(function(t){if(t.kind==="transfer"||t.account==="savings")return;var k=(t.date||"").slice(0,7);if(!k)return;
       var b=byM[k]||(byM[k]={month:k,income:0,expense:0});
       if(t.amount>=0)b.income+=t.amount; else {b.expense+=-t.amount;var n=t.categoryId?catName(t.categoryId):"Unsortiert";(catM[k]||(catM[k]={}));catM[k][n]=(catM[k][n]||0)+(-t.amount);}});
     var months=Object.keys(byM).map(function(k){var b=byM[k];
@@ -350,6 +378,31 @@
     months.forEach(function(m){if(best===null||m.net>best.net)best=m;if(worst===null||m.expense>worst.expense)worst=m;});
     return {months:months,best:best?best.month:null,worst:(worst&&worst.expense>0)?worst.month:null};
   }
+
+  /* ---------- savings account ---------- */
+  function savingsTx(){return allTx().filter(function(t){return t.account==="savings";});}
+  function incomeByMonth(){var inc={};allTx().forEach(function(t){if(t.account==="savings"||t.kind==="transfer")return;
+    if(t.kind==="income"&&t.credited!==false&&t.date)inc[t.date.slice(0,7)]=(inc[t.date.slice(0,7)]||0)+t.amount;});return inc;}
+  function savingsSeries(){var set={};savingsTx().forEach(function(t){if(t.date)set[t.date.slice(0,7)]=1;});
+    var months=Object.keys(set).sort();var net={};savingsTx().forEach(function(t){if(t.date)net[t.date.slice(0,7)]=(net[t.date.slice(0,7)]||0)+t.amount;});
+    var inc=incomeByMonth(),run=state.savingsStart||0,pts=[];
+    months.forEach(function(m){run+=net[m]||0;pts.push({month:m,balance:run,net:net[m]||0,income:inc[m]||0});});return pts;}
+  function savingsChartSVG(points){
+    var W=340,H=140,padL=6,padR=8,padT=16,padB=22,n=points.length;
+    var vals=points.map(function(p){return p.balance;});var min=Math.min.apply(null,vals),max=Math.max.apply(null,vals);
+    if(min>0)min=0;if(min===max)max=min+1;
+    function X(i){return n===1?W/2:padL+(W-padL-padR)*i/(n-1);}
+    function Y(v){return padT+(H-padT-padB)*(1-(v-min)/(max-min));}
+    var lp=points.map(function(p,i){return X(i).toFixed(1)+","+Y(p.balance).toFixed(1);});
+    var line=n===1?("M"+(X(0)-0.1).toFixed(1)+","+Y(points[0].balance).toFixed(1)+" L"+lp[0]):("M"+lp.join(" L"));
+    var area="M"+X(0).toFixed(1)+","+(H-padB)+" L"+lp.join(" L")+" L"+X(n-1).toFixed(1)+","+(H-padB)+" Z";
+    var dots=points.map(function(p,i){return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.balance).toFixed(1)+'" r="'+(i===n-1?4:2.6)+'"/>';}).join("");
+    var step=Math.ceil(n/6);var xl=points.map(function(p,i){if(n>6&&i%step!==0&&i!==n-1)return "";return '<text class="cx" x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+MONTHS_DE[+p.month.slice(5,7)-1].slice(0,3)+'</text>';}).join("");
+    var lastY=Y(points[n-1].balance),anchor=X(n-1)>W*0.7?"end":"start";
+    var lab='<text class="cv" x="'+X(n-1).toFixed(1)+'" y="'+(lastY-7).toFixed(1)+'" text-anchor="'+anchor+'">'+fmt(points[n-1].balance)+'</text>';
+    return '<svg class="savechart" viewBox="0 0 '+W+' '+H+'"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fb98f" stop-opacity=".33"/><stop offset="1" stop-color="#2fb98f" stop-opacity="0"/></linearGradient></defs>'
+      +'<path d="'+area+'" fill="url(#sg)"/><path d="'+line+'" fill="none" stroke="#2fb98f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+      +'<g fill="#2fb98f">'+dots+'</g>'+xl+lab+'</svg>';}
 
   /* ---------- render ---------- */
   var $=function(s){return document.querySelector(s);};
@@ -482,6 +535,61 @@
   $("#a-close").addEventListener("click",function(){$("#analysis").hidden=true;});
   $("#analysis").addEventListener("click",function(e){if(e.target===$("#analysis"))$("#analysis").hidden=true;});
 
+  /* ---------- savings sheet ---------- */
+  function renderSavingsSheet(){
+    var unit=state.savingsUnit==="pct"?"pct":"eur";
+    $("#sv-balance").textContent=fmt(accountBalance("savings"));
+    var pts=savingsSeries();
+    $("#sv-chart").innerHTML=pts.length?savingsChartSVG(pts):'<div class="sv-empty">Noch keine Sparbewegungen.<br>Füttere per 📷, ➕ oder ➖.</div>';
+    var txs=savingsTx();
+    var totalNet=txs.reduce(function(a,b){return a+b.amount;},0);
+    var inc=incomeByMonth(),totalIncome=0;Object.keys(inc).forEach(function(k){totalIncome+=inc[k];});
+    var l1,q1,l2,q2;
+    if(unit==="pct"){
+      l1="Sparquote gesamt";q1=totalIncome>0?Math.round(totalNet/totalIncome*100)+" %":"—";
+      var qs=pts.filter(function(p){return p.income>0;}).map(function(p){return p.net/p.income*100;});
+      l2="Ø Quote/Monat";q2=qs.length?Math.round(qs.reduce(function(a,b){return a+b;},0)/qs.length)+" %":"—";
+    } else {
+      l1="Gespart gesamt";q1=fmt(totalNet);
+      l2="Ø pro Monat";q2=pts.length?fmt(Math.round(totalNet/pts.length)):"—";
+    }
+    $("#sv-quote").innerHTML='<div class="a-hl"><div class="k">'+l1+'</div><div class="v">'+q1+'</div></div><div class="a-hl"><div class="k">'+l2+'</div><div class="v">'+q2+'</div></div>';
+    var list=$("#sv-list");list.innerHTML="";
+    if(pts.length){
+      var h=document.createElement("div");h.className="sv-h";h.textContent="Pro Monat";list.appendChild(h);
+      pts.slice().reverse().forEach(function(p){var row=document.createElement("div");row.className="m-row";var pos=p.net>=0;
+        var val=unit==="pct"?(p.income>0?Math.round(p.net/p.income*100)+" %":"—"):((pos?"+":"")+fmt(p.net));
+        row.innerHTML='<div class="p">'+monthLabel(p.month)+'</div><div class="a '+(pos?"pos":"")+'">'+val+'</div>';
+        list.appendChild(row);});
+    }
+    var moves=txs.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"")||(b.id-a.id);});
+    if(moves.length){
+      var h2=document.createElement("div");h2.className="sv-h";h2.textContent="Bewegungen";list.appendChild(h2);
+      moves.forEach(function(t){var row=document.createElement("div");row.className="m-row";var pos=t.amount>=0;
+        row.innerHTML='<div class="p">'+esc(t.payee||(pos?"Einzahlung":"Abhebung"))+'<div class="d">'+(t.date?deLabel(t.date):"")+'</div></div><div class="a '+(pos?"pos":"")+'">'+(pos?"+":"")+fmt(t.amount)+'</div><button class="back sv-del">🗑</button>';
+        row.querySelector(".sv-del").addEventListener("click",function(){if(confirm("Diese Sparbewegung löschen?")){deleteTx(t.id);save();renderSavingsSheet();}});
+        list.appendChild(row);});
+    }
+  }
+  function openSavings(){renderSavingsSheet();$("#savemodal").hidden=false;}
+  function addSavingsRows(rows){var today=new Date();rows.forEach(function(r){var inc=r.amount>0;
+    state.transactions.push({id:id(),account:"savings",amount:r.amount,payee:r.payee?cleanPayee(r.payee):(inc?"Einzahlung":"Abhebung"),date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense"});});}
+  function handleSavingsFiles(files){if(!files.length)return;var bal=$("#sv-balance"),old=bal.textContent;bal.textContent="Lese Screenshot…";
+    var chain=Promise.resolve(),any=false;
+    Array.prototype.slice.call(files).forEach(function(f){chain=chain.then(function(){
+      return ocrImage(f).then(function(text){var rows=parseTransactions(text);if(rows.length){addSavingsRows(rows);any=true;}}).catch(function(){});});});
+    chain.then(function(){if(!any){bal.textContent=old;alert("Keine Beträge erkannt. Du kannst manuell ➕ oder ➖ eingeben.");}save();renderSavingsSheet();});}
+  $("#mi-savings").addEventListener("click",function(){closeMenu();openSavings();});
+  $("#sv-close").addEventListener("click",function(){$("#savemodal").hidden=true;});
+  $("#savemodal").addEventListener("click",function(e){if(e.target===$("#savemodal"))$("#savemodal").hidden=true;});
+  $("#sv-unit").addEventListener("click",function(){state.savingsUnit=state.savingsUnit==="pct"?"eur":"pct";save();renderSavingsSheet();});
+  $("#sv-in").addEventListener("click",function(){var t=prompt("Einzahlung aufs Sparkonto (€):");if(t==null)return;var x=Math.abs(toCents(t));if(x<=0){alert("Bitte einen Betrag eingeben.");return;}
+    state.transactions.push({id:id(),account:"savings",kind:"income",amount:x,payee:"Einzahlung",date:todayISO(),categoryId:null});save();renderSavingsSheet();});
+  $("#sv-out").addEventListener("click",function(){var t=prompt("Abhebung vom Sparkonto (€):");if(t==null)return;var x=Math.abs(toCents(t));if(x<=0){alert("Bitte einen Betrag eingeben.");return;}
+    state.transactions.push({id:id(),account:"savings",kind:"expense",amount:-x,payee:"Abhebung",date:todayISO(),categoryId:null});save();renderSavingsSheet();});
+  $("#sv-setbal").addEventListener("click",function(){var cur=accountBalance("savings");var t=prompt("Aktueller Sparkonto-Stand (€):",(cur/100).toFixed(2).replace(".",","));if(t==null)return;var diff=toCents(t)-cur;state.savingsStart=(state.savingsStart||0)+diff;save();renderSavingsSheet();});
+  $("#sv-file").addEventListener("change",function(e){handleSavingsFiles(e.target.files);e.target.value="";});
+
   /* ---------- OCR ---------- */
   function loadScript(src){return new Promise(function(res,rej){var s=document.createElement("script");s.src=src;s.onload=res;s.onerror=function(){rej(new Error("load failed"));};document.head.appendChild(s);});}
   function ensureTesseract(){if(window.Tesseract)return Promise.resolve(window.Tesseract);return loadScript(TESS_URL).then(function(){return window.Tesseract;});}
@@ -597,6 +705,8 @@
     if(typeof state.salaryThreshold!=="number")state.salaryThreshold=260000;
     if(typeof state.periodStartDay!=="number")state.periodStartDay=1;
     if(typeof state.cashStart!=="number")state.cashStart=0;
+    if(typeof state.savingsStart!=="number")state.savingsStart=0;
+    if(state.savingsUnit!=="pct")state.savingsUnit="eur";
     if(!state.nextId){var mx=0;(state.transactions||[]).concat(state.categories||[]).forEach(function(o){if(o.id>mx)mx=o.id;});state.nextId=mx+1;}
     viewPeriod=periodStart(todayISO());render();});
 })();
