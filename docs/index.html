@@ -146,6 +146,10 @@
   .savechart .sv-t2{fill:var(--ink-soft);font-size:9px;font-family:inherit;}
   .sv-empty{color:var(--ink-faint);font-style:italic;text-align:center;padding:22px 8px;border-radius:16px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   .sv-h{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;margin:2px 2px -4px;}
+  .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(6px);z-index:4000;
+    max-width:calc(100% - 30px);background:var(--card-bg);color:var(--card-ink);padding:12px 16px;border-radius:15px;box-shadow:var(--card-shadow);
+    font-size:.84rem;font-weight:600;line-height:1.4;text-align:left;white-space:pre-line;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   [hidden]{display:none!important;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
@@ -225,7 +229,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-07-30 · Sparkonto-Punkte</div>
+    <div class="pp-hint" id="app-version">Version: 2026-08-17 · Import-Zusammenfassung</div>
   </div>
 </div></div>
 
@@ -417,6 +421,11 @@
 
   /* ---------- render ---------- */
   var $=function(s){return document.querySelector(s);};
+  var _toastEl=null,_toastT=null;
+  function toast(msg,ms){if(!msg)return;ms=ms||5000;
+    if(!_toastEl){_toastEl=document.createElement("div");_toastEl.className="toast";document.body.appendChild(_toastEl);}
+    _toastEl.textContent=msg;_toastEl.classList.remove("show");void _toastEl.offsetWidth;_toastEl.classList.add("show");
+    if(_toastT)clearTimeout(_toastT);_toastT=setTimeout(function(){_toastEl.classList.remove("show");},ms);}
   function lastBooking(){var best=null;allTx().forEach(function(t){if(!inAcc(t)||!t.date)return;
     if(!best||t.date>best.date||(t.date===best.date&&t.id>best.id))best=t;});return best;}
   function renderLast(){var el=$("#lastbar");var b=lastBooking();
@@ -626,16 +635,25 @@
   function addParsedRows(rows){var today=new Date();rows.forEach(function(r){
     var inc=r.amount>0;var pp=(!inc)&&r.payee&&/paypal/i.test(r.payee);
     state.transactions.push({id:id(),account:"bank",amount:r.amount,payee:r.payee,date:parseDateLabel(r.dateLabel,today),categoryId:null,kind:inc?"income":"expense",credited:inc?false:undefined,awaitPaypal:pp?true:undefined});});}
+  function importSummary(s){
+    if(!s.exp&&!s.inc&&!s.blank)return "📷 Nichts erkannt.";
+    var parts=[];
+    if(s.exp)parts.push("💳 Kontostand "+fmt(s.expCents)+"  ("+s.exp+" "+(s.exp===1?"Ausgabe":"Ausgaben")+")");
+    if(s.inc)parts.push("➕ "+s.inc+" "+(s.inc===1?"Einnahme":"Einnahmen")+" erkannt — erst per „Gutschreiben“ im Stand");
+    if(s.blank)parts.push("⚠️ "+s.blank+" "+(s.blank===1?"Screenshot":"Screenshots")+" ohne erkannte Beträge — bitte manuell eintragen");
+    return parts.join("\n");}
   function handleFiles(files){if(!files.length)return;
     $("#busy").hidden=false;$("#deck").hidden=true;$("#deck-empty").hidden=true;
-    var chain=Promise.resolve(),any=false;
+    var chain=Promise.resolve(),sum={exp:0,expCents:0,inc:0,incCents:0,blank:0};
+    function blankCard(){state.transactions.push({id:id(),account:"bank",amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});sum.blank++;}
     Array.prototype.slice.call(files).forEach(function(f){chain=chain.then(function(){
       return ocrImage(f).then(function(text){var rows=parseTransactions(text);
-        if(rows.length){addParsedRows(rows);any=true;}
-        else state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});
+        if(rows.length){addParsedRows(rows);
+          rows.forEach(function(r){if(r.amount>0){sum.inc++;sum.incCents+=r.amount;}else{sum.exp++;sum.expCents+=r.amount;}});}
+        else blankCard();
       }).catch(function(){ // OCR unavailable (e.g. offline first run / preview) → manual card
-        state.transactions.push({id:id(),amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});});});});
-    chain.then(function(){$("#busy").hidden=true;render();});}
+        blankCard();});});});
+    chain.then(function(){$("#busy").hidden=true;render();toast(importSummary(sum),6500);});}
   $("#file").addEventListener("change",function(e){handleFiles(e.target.files);e.target.value="";});
   $("#blank").addEventListener("click",function(){state.transactions.push({id:id(),account:viewAccount,amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});render();});
   $("#income").addEventListener("click",function(){state.transactions.push({id:id(),account:viewAccount,amount:0,payee:null,date:todayISO(),categoryId:null,kind:"income",credited:false});render();});
