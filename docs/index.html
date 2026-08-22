@@ -229,7 +229,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-08-17 · Import-Zusammenfassung</div>
+    <div class="pp-hint" id="app-version">Version: 2026-08-22 · Zählt beim Einsortieren</div>
   </div>
 </div></div>
 
@@ -374,8 +374,13 @@
   function periodExpense(){return allTx().reduce(function(s,t){return s+((t.kind==="expense"&&t.amount<0&&inAcc(t)&&inViewPeriod(t))?-t.amount:0);},0);}
   function acc(t){return t.account||"bank";}
   var viewAccount="bank";
+  // A booking counts toward an account balance unless it is still "open":
+  //   • income waiting to be credited ("Gutschreiben"), or
+  //   • an expense not yet sorted into a category (deck card).
+  // Transfers (withdrawals) and savings movements always count — the savings
+  // account has no category board, so its expenses are never "unsorted".
   function accountBalance(a){var start=a==="cash"?(state.cashStart||0):a==="savings"?(state.savingsStart||0):state.startBalance;
-    return state.transactions.reduce(function(s,b){return s+((acc(b)!==a||(b.kind==="income"&&b.credited===false))?0:b.amount);},start);}
+    return state.transactions.reduce(function(s,b){return s+((acc(b)!==a||(b.kind==="income"&&b.credited===false)||(a!=="savings"&&b.kind==="expense"&&b.categoryId==null))?0:b.amount);},start);}
   function balance(){return accountBalance(viewAccount);}
   function colorForName(name){var i=state.categories.map(function(c){return c.name;}).indexOf(name);return i>=0?PALETTE[i%PALETTE.length]:"#9aa0b5";}
   function monthlyReport(){
@@ -638,18 +643,18 @@
   function importSummary(s){
     if(!s.exp&&!s.inc&&!s.blank)return "📷 Nichts erkannt.";
     var parts=[];
-    if(s.exp)parts.push("💳 Kontostand "+fmt(s.expCents)+"  ("+s.exp+" "+(s.exp===1?"Ausgabe":"Ausgaben")+")");
-    if(s.inc)parts.push("➕ "+s.inc+" "+(s.inc===1?"Einnahme":"Einnahmen")+" erkannt — erst per „Gutschreiben“ im Stand");
+    if(s.exp)parts.push("📥 "+s.exp+" "+(s.exp===1?"Ausgabe":"Ausgaben")+" erkannt — in eine Box ziehen, damit sie zählen");
+    if(s.inc)parts.push("➕ "+s.inc+" "+(s.inc===1?"Einnahme":"Einnahmen")+" erkannt — per „Gutschreiben“ verbuchen");
     if(s.blank)parts.push("⚠️ "+s.blank+" "+(s.blank===1?"Screenshot":"Screenshots")+" ohne erkannte Beträge — bitte manuell eintragen");
     return parts.join("\n");}
   function handleFiles(files){if(!files.length)return;
     $("#busy").hidden=false;$("#deck").hidden=true;$("#deck-empty").hidden=true;
-    var chain=Promise.resolve(),sum={exp:0,expCents:0,inc:0,incCents:0,blank:0};
+    var chain=Promise.resolve(),sum={exp:0,inc:0,blank:0};
     function blankCard(){state.transactions.push({id:id(),account:"bank",amount:0,payee:null,date:todayISO(),categoryId:null,kind:"expense"});sum.blank++;}
     Array.prototype.slice.call(files).forEach(function(f){chain=chain.then(function(){
       return ocrImage(f).then(function(text){var rows=parseTransactions(text);
         if(rows.length){addParsedRows(rows);
-          rows.forEach(function(r){if(r.amount>0){sum.inc++;sum.incCents+=r.amount;}else{sum.exp++;sum.expCents+=r.amount;}});}
+          rows.forEach(function(r){if(r.amount>0)sum.inc++;else sum.exp++;});}
         else blankCard();
       }).catch(function(){ // OCR unavailable (e.g. offline first run / preview) → manual card
         blankCard();});});});
