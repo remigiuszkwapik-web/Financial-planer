@@ -146,6 +146,10 @@
   .savechart .sv-t2{fill:var(--ink-soft);font-size:9px;font-family:inherit;}
   .sv-empty{color:var(--ink-faint);font-style:italic;text-align:center;padding:22px 8px;border-radius:16px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   .sv-h{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;margin:2px 2px -4px;}
+  .menu-item .badge{margin-left:auto;font-size:.78rem;font-weight:700;color:var(--expense);white-space:nowrap;}
+  .m-row.dup{box-shadow:inset 0 0 0 1.5px var(--expense),inset -3px -3px 6px var(--hl),inset 3px 3px 7px var(--sd);}
+  .m-row .warn{color:var(--expense);font-size:1rem;flex:none;line-height:1;}
+  .hist-hint{font-size:.72rem;color:var(--ink-faint);line-height:1.35;margin:-4px 2px 0;}
   [hidden]{display:none!important;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
@@ -193,6 +197,14 @@
   <div class="sheet-list" id="a-list"></div>
 </div></div>
 
+<div class="modal" id="histmodal" hidden><div class="sheet tall">
+  <div class="sheet-head"><span class="t">📜 Gesamtverlauf</span><button class="iconbtn sm" id="hist-close">✕</button></div>
+  <div class="sheet-total" id="hist-balance"></div>
+  <div class="hist-hint">Alle Buchungen dieses Kontos – neueste zuerst, mit laufendem Saldo. Die oberste Saldo-Zeile ist dein aktueller Kontostand.</div>
+  <div class="pp-hint" id="hist-dupnote" hidden></div>
+  <div class="sheet-list" id="hist-list"></div>
+</div></div>
+
 <div class="modal" id="savemodal" hidden><div class="sheet tall">
   <div class="sheet-head"><span class="t">🐷 Sparkonto</span><button class="iconbtn sm" id="sv-close">✕</button></div>
   <div class="sheet-total" id="sv-balance"></div>
@@ -215,6 +227,7 @@
   <div class="sheet-head"><span class="t">Menü</span><button class="iconbtn sm" id="menu-close">✕</button></div>
   <div class="sheet-list">
     <div class="menu-item" id="mi-balance">💰 Kontostand setzen</div>
+    <div class="menu-item" id="mi-history">📜 Gesamtverlauf</div>
     <div class="menu-item" id="mi-savings">🐷 Sparkonto</div>
     <div class="menu-item" id="mi-period">🗓 Zeitraum einstellen</div>
     <div class="menu-item" id="mi-clean">🧹 Empfänger bereinigen</div>
@@ -225,7 +238,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-07-30 · Sparkonto-Punkte</div>
+    <div class="pp-hint" id="app-version">Version: 2026-09-15 · Gesamtverlauf & Doppel-Check</div>
   </div>
 </div></div>
 
@@ -546,6 +559,45 @@
   $("#a-close").addEventListener("click",function(){$("#analysis").hidden=true;});
   $("#analysis").addEventListener("click",function(e){if(e.target===$("#analysis"))$("#analysis").hidden=true;});
 
+  /* ---------- full history + duplicate check ---------- */
+  function dupKey(t){return acc(t)+"|"+(t.date||"")+"|"+t.amount+"|"+String(t.payee||"").trim().toLowerCase();}
+  function duplicateMap(a){          // id -> group size, for entries that look identical (same account+date+amount+payee)
+    var groups={};
+    allTx().forEach(function(t){if(acc(t)!==a||t.amount===0)return;var k=dupKey(t);(groups[k]||(groups[k]=[])).push(t.id);});
+    var map={};Object.keys(groups).forEach(function(k){var g=groups[k];if(g.length>1)g.forEach(function(gid){map[gid]=g.length;});});
+    return map;}
+  function duplicateCount(a){return Object.keys(duplicateMap(a)).length;}
+  function historyRows(a){           // chronological, each row carrying the running balance after it
+    var start=a==="cash"?(state.cashStart||0):a==="savings"?(state.savingsStart||0):state.startBalance;
+    var list=allTx().filter(function(t){return acc(t)===a;}).sort(function(x,y){return (x.date||"").localeCompare(y.date||"")||(x.id-y.id);});
+    var run=start,out=[];
+    list.forEach(function(t){var counts=!(t.kind==="income"&&t.credited===false);if(counts)run+=t.amount;out.push({tx:t,run:run,counts:counts});});
+    return out;}
+  function renderHistory(){
+    var a=viewAccount;
+    $("#hist-balance").textContent=fmt(accountBalance(a));
+    var dups=duplicateMap(a),dupN=Object.keys(dups).length,note=$("#hist-dupnote");
+    if(dupN){note.hidden=false;note.innerHTML="⚠️ "+dupN+" mögliche Doppelbuchung"+(dupN===1?"":"en")+" erkannt – unten rot markiert. Prüfe und lösche, was doppelt ist.";}
+    else note.hidden=true;
+    var rows=historyRows(a).reverse();   // newest first
+    var list=$("#hist-list");list.innerHTML="";
+    if(!rows.length){list.innerHTML='<div class="m-empty">Noch keine Buchungen.</div>';return;}
+    rows.forEach(function(r){var t=r.tx,pos=t.amount>=0,isDup=dups[t.id];
+      var row=document.createElement("div");row.className="m-row"+(isDup?" dup":"");
+      var meta=(t.date?deLabel(t.date):"—")+" · "+(r.counts?"Saldo "+fmt(r.run):"noch nicht gebucht");
+      var name=esc(t.payee||(t.kind==="transfer"?"Abhebung":(pos?"Einnahme":"Ausgabe")));
+      row.innerHTML=(isDup?'<span class="warn" title="Mögliche Doppelbuchung">⚠️</span>':'')
+        +'<div class="p">'+name+'<div class="d">'+meta+'</div></div>'
+        +'<span class="a '+(pos?"pos":"")+'">'+(pos?"+":"")+fmt(t.amount)+'</span>'
+        +'<button class="back del2" title="Löschen">🗑</button>';
+      row.querySelector(".del2").addEventListener("click",function(){if(confirm("Diese Buchung wirklich löschen?")){deleteTx(t.id);render();renderHistory();}});
+      list.appendChild(row);});
+  }
+  function openHistory(){renderHistory();$("#histmodal").hidden=false;}
+  $("#hist-close").addEventListener("click",function(){$("#histmodal").hidden=true;});
+  $("#histmodal").addEventListener("click",function(e){if(e.target===$("#histmodal"))$("#histmodal").hidden=true;});
+  $("#mi-history").addEventListener("click",function(){closeMenu();openHistory();});
+
   /* ---------- savings sheet ---------- */
   function renderSavingsSheet(){
     var unit=state.savingsUnit==="pct"?"pct":"eur";
@@ -681,7 +733,9 @@
   });
 
   /* ---------- menu / balance / backup / export ---------- */
-  function openMenu(){updateStorageStatus();$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
+  function openMenu(){updateStorageStatus();updateHistoryBadge();$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
+  function updateHistoryBadge(){var el=$("#mi-history");if(!el)return;var n=duplicateCount(viewAccount);
+    el.innerHTML='📜 Gesamtverlauf'+(n?'<span class="badge">⚠️ '+n+' doppelt</span>':'');}
   function updateStorageStatus(){var el=$("#storage-status");if(!el)return;el.textContent="Speicher wird geprüft…";
     var p=(navigator.storage&&navigator.storage.persisted)?navigator.storage.persisted():Promise.resolve(null);
     var e=(navigator.storage&&navigator.storage.estimate)?navigator.storage.estimate():Promise.resolve({usage:0});
