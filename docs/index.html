@@ -146,9 +146,7 @@
   .savechart .sv-t2{fill:var(--ink-soft);font-size:9px;font-family:inherit;}
   .sv-empty{color:var(--ink-faint);font-style:italic;text-align:center;padding:22px 8px;border-radius:16px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   .sv-h{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;margin:2px 2px -4px;}
-  .deck-empty .eb{margin-top:12px;border:none;border-radius:14px;background:var(--ground);color:var(--ink);font-family:inherit;font-weight:600;font-size:.85rem;padding:10px 16px;cursor:pointer;box-shadow:-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
-  .deck-empty .eb:active{box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
-  .deck-empty .eb.warn{color:var(--expense);display:block;margin:10px auto 0;}
+  .menu-item .badge{margin-left:auto;font-size:.78rem;font-weight:700;color:var(--expense);white-space:nowrap;}
   .m-row.dup{box-shadow:inset 0 0 0 1.5px var(--expense),inset -3px -3px 6px var(--hl),inset 3px 3px 7px var(--sd);}
   .m-row .warn{color:var(--expense);font-size:1rem;flex:none;line-height:1;}
   .hist-hint{font-size:.72rem;color:var(--ink-faint);line-height:1.35;margin:-4px 2px 0;}
@@ -467,19 +465,9 @@
     else if(a==="cash"){var amt=Math.abs(tx.amount);if(amt<=0){alert("Bitte erst einen Betrag eintragen.");return;}
       var tid=id();tx.kind="transfer";tx.transferId=tid;tx.categoryId=null;tx.awaitPaypal=undefined;
       state.transactions.push({id:id(),account:"cash",kind:"transfer",amount:amt,payee:"Abhebung",date:tx.date||todayISO(),transferId:tid});render();}}
-  function renderEmpty(){var el=$("#deck-empty");
-    var has=allTx().some(function(t){return acc(t)===viewAccount;});
-    var dupN=duplicateCount(viewAccount);
-    var html='Keine offenen Ausgaben 🎉<br>'+(viewAccount==="cash"?"Alles sortiert.":"Lade einen Screenshot hoch.");
-    if(has)html+='<br><button class="eb" id="empty-hist">📜 Gesamtverlauf ansehen</button>';
-    if(dupN)html+='<button class="eb warn" id="empty-dup">⚠️ '+dupN+' mögliche Doppelbuchung'+(dupN===1?'':'en')+' prüfen</button>';
-    el.innerHTML=html;
-    var eh=el.querySelector("#empty-hist");if(eh)eh.addEventListener("click",openHistory);
-    var ed=el.querySelector("#empty-dup");if(ed)ed.addEventListener("click",openHistory);}
   function renderDeck(){var deck=$("#deck");deck.innerHTML="";
     Array.prototype.slice.call(document.querySelectorAll(".card.ghost")).forEach(function(g){g.remove();}); // clear any orphaned drag ghost
     var cards=unsortedCards();var empty=cards.length===0;
-    if(empty)renderEmpty();
     $("#deck-empty").hidden=!empty||!$("#busy").hidden;deck.hidden=empty;
     var shown=cards.slice(0,3);
     for(var i=shown.length-1;i>=0;i--){(function(tx,i){var card=buildCard(tx);card.style.zIndex=String(10-i);
@@ -745,7 +733,9 @@
   });
 
   /* ---------- menu / balance / backup / export ---------- */
-  function openMenu(){updateStorageStatus();$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
+  function openMenu(){updateStorageStatus();updateHistoryBadge();$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
+  function updateHistoryBadge(){var el=$("#mi-history");if(!el)return;var n=duplicateCount(viewAccount);
+    el.innerHTML='📜 Gesamtverlauf'+(n?'<span class="badge">⚠️ '+n+' doppelt</span>':'');}
   function updateStorageStatus(){var el=$("#storage-status");if(!el)return;el.textContent="Speicher wird geprüft…";
     var p=(navigator.storage&&navigator.storage.persisted)?navigator.storage.persisted():Promise.resolve(null);
     var e=(navigator.storage&&navigator.storage.estimate)?navigator.storage.estimate():Promise.resolve({usage:0});
