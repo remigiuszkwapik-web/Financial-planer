@@ -109,7 +109,7 @@ function renderGrid() {
       '<button class="x" title="Box löschen">✕</button>' +
       '<div class="nm"><span class="dot" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' + esc(cat.name) + "</div>" +
       '<div class="tot">' + fmt(cat.total_cents) + "</div>" +
-      '<div class="cnt">' + cat.count + " Einträge · tippen</div>";
+      '<div class="cnt">' + cat.count + (cat.count === 1 ? " Eintrag" : " Einträge") + " · tippen</div>";
     box.addEventListener("click", () => openCategory(cat.id, cat.name, i));
     box.querySelector(".x").addEventListener("click", async (e) => {
       e.stopPropagation();

@@ -462,8 +462,9 @@
     var months=Object.keys(byM).map(function(k){var b=byM[k];
       var cats=Object.keys(catM[k]||{}).map(function(n){return {name:n,expense:catM[k][n]};}).sort(function(x,y){return y.expense-x.expense;});
       b.categories=cats;b.top=cats.length?cats[0].name:null;b.net=b.income-b.expense;return b;}).sort(function(x,y){return y.month.localeCompare(x.month);});
-    var best=null,worst=null;
-    months.forEach(function(m){if(best===null||m.net>best.net)best=m;if(worst===null||m.expense>worst.expense)worst=m;});
+    var best=null,worst=null,cur=todayISO().slice(0,7);
+    months.forEach(function(m){if(m.month>=cur)return;   // the running month isn't finished yet, so it stays out of the ranking
+      if(best===null||m.net>best.net)best=m;if(worst===null||m.expense>worst.expense)worst=m;});
     return {months:months,best:best?best.month:null,worst:(worst&&worst.expense>0)?worst.month:null};
   }
 
@@ -485,7 +486,7 @@
     var line=n===1?("M"+(X(0)-0.1).toFixed(1)+","+Y(points[0].balance).toFixed(1)+" L"+lp[0]):("M"+lp.join(" L"));
     var area="M"+X(0).toFixed(1)+","+(H-padB)+" L"+lp.join(" L")+" L"+X(n-1).toFixed(1)+","+(H-padB)+" Z";
     var dots=points.map(function(p,i){return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.balance).toFixed(1)+'" r="'+(i===n-1?4:2.6)+'"/>';}).join("");
-    var step=Math.ceil(n/6);var xl=points.map(function(p,i){if(n>6&&i%step!==0&&i!==n-1)return "";return '<text class="cx" x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+MONTHS_DE[+p.month.slice(5,7)-1].slice(0,3)+'</text>';}).join("");
+    var step=Math.ceil(n/6);var xl=points.map(function(p,i){if(n>6&&i%step!==0&&i!==n-1)return "";return '<text class="cx" x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="'+(n>1&&i===0?"start":n>1&&i===n-1?"end":"middle")+'">'+MONTHS_DE[+p.month.slice(5,7)-1].slice(0,3)+'</text>';}).join("");
     var lastY=Y(points[n-1].balance),anchor=X(n-1)>W*0.7?"end":"start";
     var lab='<text class="cv" x="'+X(n-1).toFixed(1)+'" y="'+(lastY-7).toFixed(1)+'" text-anchor="'+anchor+'">'+fmt(points[n-1].balance)+'</text>';
     // large invisible tap targets carry the values for the tooltip
@@ -559,7 +560,7 @@
       pt.addEventListener("click",openPaypal);grid.appendChild(pt);}
     state.categories.forEach(function(cat,i){var total=catTotal(cat.id),count=catItems(cat.id).length;
       var box=document.createElement("div");box.className="cat";box.dataset.id=cat.id;
-      box.innerHTML='<button class="x" title="Box löschen">✕</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="cnt">'+count+' Einträge</div>';
+      box.innerHTML='<button class="x" title="Box löschen">✕</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="cnt">'+count+(count===1?' Eintrag':' Einträge')+'</div>';
       box.addEventListener("click",function(){openCategory(cat.id,cat.name,i);});
       box.querySelector(".x").addEventListener("click",function(e){e.stopPropagation();
         if(count&&!confirm('"'+cat.name+'" löschen? Einträge wandern zurück in den Stapel.'))return;
