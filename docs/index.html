@@ -93,6 +93,10 @@
     transition:opacity .12s,transform .18s cubic-bezier(.2,.8,.3,1);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .card.stamped .stamp{opacity:1;transform:rotate(-10deg) scale(1);}
   .card.stamped .actions{visibility:hidden;}
+  .deck .badge{position:absolute;right:-6px;top:-34px;z-index:20;min-width:30px;height:30px;padding:0 9px;border-radius:15px;background:var(--lav);color:#fff;
+    font-weight:800;font-size:.9rem;display:grid;place-items:center;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 4px 10px rgba(80,60,200,.35);}
+  .deck .badge.tick{animation:tick .4s cubic-bezier(.2,.8,.3,1);}
+  @keyframes tick{40%{transform:scale(1.25);}100%{transform:scale(1);}}
   .progress{flex:none;display:flex;flex-direction:column;gap:5px;}
   .progress .segs{display:flex;gap:3px;}
   .progress .segs.dense{gap:0;}
@@ -578,7 +582,11 @@
           amt.addEventListener("blur",function(){tx.amount=-Math.abs(toCents(amt.value));amt.value=fmt(tx.amount);renderSoft();});
           enableDrag(card,tx,function(t){var act=t.closest(".act");if(act){doAction(tx,act.dataset.a);return;}if(t.closest(".kindtog")){toggleKind(tx);return;}var inp=t.closest("input");if(inp){try{inp.focus();}catch(_){}}});
         }}
-      else card.classList.add("behind");deck.appendChild(card);})(shown[i],i);}}
+      else card.classList.add("behind");deck.appendChild(card);})(shown[i],i);}
+    if(!empty){var bd=document.createElement("div");bd.className="badge";bd.textContent=cards.length;bd.setAttribute("aria-label",cards.length+" offen");
+      if(lastBadge!=null&&cards.length<lastBadge)bd.classList.add("tick");deck.appendChild(bd);}
+    lastBadge=cards.length;}
+  var lastBadge=null;   // open-card count at the previous render, so the badge only pulses when it counts down
   function renderGrid(){var grid=$("#grid");grid.innerHTML="";
     var ph=paypalHolding();
     if(ph.length){var pt=document.createElement("div");pt.className="cat paypal";
@@ -640,7 +648,7 @@
     var segs=sortLog.map(function(e){return '<i style="background:'+(e.cid!=null?catColor(e.cid):"var(--ink-faint)")+';opacity:'+(e.cid!=null?1:.45)+'"></i>';}).join("")+
       open.map(function(t,k){return '<i'+(k===0?' class="now"':'')+'></i>';}).join("");
     var rest=open.reduce(function(s,t){return s+(t.kind==="expense"?t.amount:0);},0);
-    el.hidden=false;el.innerHTML='<div class="segs'+(n>24?' dense':'')+'">'+segs+'</div><div class="cap"><span>'+sortLog.length+' / '+n+' sortiert</span><span>'+open.length+' offen'+(rest?' · '+fmt(rest):'')+'</span></div>';}
+    el.hidden=false;el.innerHTML='<div class="segs'+(n>24?' dense':'')+'">'+segs+'</div><div class="cap"><span>'+sortLog.length+' / '+n+' sortiert</span><span>'+(rest?'noch '+fmt(rest):'')+'</span></div>';}
   function renderDone(){var el=$("#deck-empty"),sorted=sortLog.filter(function(e){return e.cid!=null;});
     if(!sorted.length){el.innerHTML='Keine offenen Ausgaben 🎉<br>Lade einen Screenshot hoch.';return;}
     var per={},sum=0;sorted.forEach(function(e){per[e.cid]=(per[e.cid]||0)+e.amount;sum+=e.amount;});
