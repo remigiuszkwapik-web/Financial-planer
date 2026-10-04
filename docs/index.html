@@ -97,14 +97,6 @@
     font-weight:800;font-size:.9rem;display:grid;place-items:center;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 4px 10px rgba(80,60,200,.35);}
   .deck .badge.tick{animation:tick .4s cubic-bezier(.2,.8,.3,1);}
   @keyframes tick{40%{transform:scale(1.25);}100%{transform:scale(1);}}
-  .progress{flex:none;display:flex;flex-direction:column;gap:5px;}
-  .progress .segs{display:flex;gap:3px;}
-  .progress .segs.dense{gap:0;}
-  .progress .segs i{flex:1;height:6px;border-radius:3px;background:var(--sd);transition:background .3s;}
-  .progress .segs.dense i{border-radius:0;}
-  .progress .segs.dense i:first-child{border-radius:3px 0 0 3px;}.progress .segs.dense i:last-child{border-radius:0 3px 3px 0;}
-  .progress .segs i.now{background:var(--ink-faint);}
-  .progress .cap{display:flex;justify-content:space-between;font-size:.7rem;font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
   .done-sum{display:flex;flex-direction:column;gap:7px;text-align:left;}
   .done-sum b{font-size:.98rem;color:var(--ink);}
   .done-sum .row{display:flex;justify-content:space-between;gap:10px;font-size:.85rem;font-variant-numeric:tabular-nums;}
@@ -251,7 +243,6 @@
     <button class="iconbtn sm" id="m-next">›</button>
   </div>
   <div class="lastbar" id="lastbar" hidden></div>
-  <div class="progress" id="progress" hidden></div>
   <div class="deck-area">
     <div class="deck" id="deck"></div>
     <div class="deck-empty" id="deck-empty" hidden>Keine offenen Ausgaben 🎉<br>Lade einen Screenshot hoch.</div>
@@ -533,7 +524,7 @@
   function renderLast(){var el=$("#lastbar");var b=lastBooking();
     if(!b){el.hidden=true;return;}
     el.hidden=false;el.textContent="🕘 Neueste Buchung: "+deLabel(b.date)+" · "+(b.payee||"—")+" "+fmt(b.amount);}
-  function render(){renderBalance();renderMonthbar();renderLast();renderDeck();renderGrid();renderBar();renderProgress();save();}
+  function render(){renderBalance();renderMonthbar();renderLast();renderDeck();renderGrid();renderBar();trackRound();save();}
   function renderSoft(){renderBalance();renderMonthbar();renderLast();renderGrid();renderBar();save();} // update everything except the deck (keeps the card being edited/dragged in place)
   function renderMonthbar(){$("#mb-label").textContent=periodLabel();$("#mb-sum").textContent="Ausgaben: "+fmt(periodExpense());}
   function renderBalance(){var b=balance();var el=$("#bal-val");el.textContent=fmt(b);el.classList.toggle("neg",b<0);
@@ -638,17 +629,10 @@
   function clearHi(ghost){document.querySelectorAll(".cat.on").forEach(function(b){b.classList.remove("on");});document.body.classList.remove("tinted");
     if(ghost){ghost.classList.remove("stamped");ghost.style.backgroundColor="";}}
 
-  /* ---------- sorting progress (one segment per card of the current round) ---------- */
+  /* ---------- sorting round (feeds the summary shown when the stack is empty) ---------- */
   var sortLog=[],lastOpen=null;   // cards that left the stack this round: {cid,amount}; cid null = not sorted into a box
   function logOut(tx,cid){sortLog.push({cid:cid,amount:tx.amount});}
-  function renderProgress(){var el=$("#progress"),open=unsortedCards();
-    if(open.length&&lastOpen===0)sortLog=[];            // a new round starts when cards arrive on an empty stack
-    lastOpen=open.length;var n=sortLog.length+open.length;
-    if(!open.length||n<2){el.hidden=true;return;}
-    var segs=sortLog.map(function(e){return '<i style="background:'+(e.cid!=null?catColor(e.cid):"var(--ink-faint)")+';opacity:'+(e.cid!=null?1:.45)+'"></i>';}).join("")+
-      open.map(function(t,k){return '<i'+(k===0?' class="now"':'')+'></i>';}).join("");
-    var rest=open.reduce(function(s,t){return s+(t.kind==="expense"?t.amount:0);},0);
-    el.hidden=false;el.innerHTML='<div class="segs'+(n>24?' dense':'')+'">'+segs+'</div><div class="cap"><span>'+sortLog.length+' / '+n+' sortiert</span><span>'+(rest?'noch '+fmt(rest):'')+'</span></div>';}
+  function trackRound(){var n=unsortedCards().length;if(n&&lastOpen===0)sortLog=[];lastOpen=n;}   // a new round starts when cards arrive on an empty stack
   function renderDone(){var el=$("#deck-empty"),sorted=sortLog.filter(function(e){return e.cid!=null;});
     if(!sorted.length){el.innerHTML='Keine offenen Ausgaben 🎉<br>Lade einen Screenshot hoch.';return;}
     var per={},sum=0;sorted.forEach(function(e){per[e.cid]=(per[e.cid]||0)+e.amount;sum+=e.amount;});
