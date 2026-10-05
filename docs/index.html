@@ -87,10 +87,11 @@
   body{transition:background-color .2s;}
   body.tinted{background:color-mix(in srgb,var(--tint) 16%,var(--ground));}
   .card.ghost{transition:background-color .15s;}
-  .card .stamp{position:absolute;right:16px;bottom:16px;transform:rotate(-10deg) scale(.85);border:3px solid currentColor;border-radius:10px;padding:2px 10px;
+  .card .stamp{position:absolute;left:16px;bottom:16px;transform:rotate(-10deg) scale(.85);border:3px solid currentColor;border-radius:10px;padding:2px 10px;
     font-weight:800;font-size:1rem;text-transform:uppercase;letter-spacing:.06em;background:var(--card-bg);opacity:0;pointer-events:none;
     transition:opacity .12s,transform .18s cubic-bezier(.2,.8,.3,1);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .card.stamped .stamp{opacity:1;transform:rotate(-10deg) scale(1);}
+  .card.stamp-right .stamp{left:auto;right:16px;}   /* card grabbed on its left half: keep the stamp clear of the finger */
   .card.stamped .actions{visibility:hidden;}
   .deck .badge{position:absolute;right:-6px;top:-34px;z-index:20;min-width:30px;height:30px;padding:0 9px;border-radius:15px;background:var(--lav);color:#fff;
     font-weight:800;font-size:.9rem;display:grid;place-items:center;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 4px 10px rgba(80,60,200,.35);}
@@ -604,7 +605,7 @@
       function move(ev){if(ev.pointerId!==e.pointerId)return;var dx=ev.clientX-sx,dy=ev.clientY-sy;
         if(!dragging&&Math.hypot(dx,dy)<8)return;
         if(!dragging){dragging=true;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
-          ghost=card.cloneNode(true);ghost.classList.add("ghost","dragging");ghost.style.width=rect.width+"px";ghost.style.height=rect.height+"px";ghost.style.inset="auto";var st=document.createElement("span");st.className="stamp";ghost.appendChild(st);document.body.appendChild(ghost);card.style.opacity="0";}
+          ghost=card.cloneNode(true);ghost.classList.add("ghost","dragging");ghost.style.width=rect.width+"px";ghost.style.height=rect.height+"px";ghost.style.inset="auto";var st=document.createElement("span");st.className="stamp";ghost.appendChild(st);if(offX<rect.width/2)ghost.classList.add("stamp-right");document.body.appendChild(ghost);card.style.opacity="0";}
         if(ev.cancelable)ev.preventDefault();var tilt=Math.max(-7,Math.min(7,dx/16));
         ghost.style.left=(ev.clientX-offX)+"px";ghost.style.top=(ev.clientY-offY)+"px";ghost.style.transform="rotate("+tilt+"deg)";highlight(ev.clientX,ev.clientY,tx,ghost);}
       function end(ev){if(ev.pointerId!==e.pointerId)return;card.removeEventListener("pointermove",move);card.removeEventListener("pointerup",end);card.removeEventListener("pointercancel",end);
