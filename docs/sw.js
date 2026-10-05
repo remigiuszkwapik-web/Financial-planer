@@ -1,6 +1,6 @@
 // Offline support for the Financial Planer PWA. Caches everything it fetches so
 // the app (and, after the first online use, the OCR engine) works offline.
-const CACHE = "finanzen-v21-icons";
+const CACHE = "finanzen-v22-appicon";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {

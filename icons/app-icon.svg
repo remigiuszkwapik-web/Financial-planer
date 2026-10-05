@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Vollflächig, damit iOS und Android selbst runden; Inhalt liegt in der 80-%-Schutzzone (maskable). -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9aa19a"/><stop offset="1" stop-color="#848b84"/>
+    </linearGradient>
+    <filter id="s" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#1e221e" flood-opacity=".35"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#g)"/>
+  <!-- hintere Karte -->
+  <rect x="136" y="150" width="250" height="160" rx="34" fill="#eef0ec" transform="rotate(-9 261 230)" filter="url(#s)"/>
+  <!-- vordere Karte -->
+  <g filter="url(#s)">
+    <rect x="118" y="200" width="276" height="176" rx="38" fill="#3c413c"/>
+  </g>
+  <rect x="154" y="240" width="112" height="20" rx="10" fill="#eef0ec" opacity=".9"/>
+  <rect x="154" y="296" width="190" height="44" rx="22" fill="#cdf84f"/>
+</svg>
