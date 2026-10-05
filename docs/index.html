@@ -56,6 +56,7 @@
   .monthbar .mb-mid{flex:1;text-align:center;display:flex;flex-direction:column;gap:1px;}
   .monthbar #mb-label{font-weight:700;font-size:1rem;}
   .monthbar #mb-sum{font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .lastbar .lb-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .lastbar{flex:none;display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums;margin:-4px 0 -2px;}
   .deck-area{flex:1 1 auto;position:relative;min-height:150px;display:flex;align-items:center;}
   .deck{position:relative;width:100%;height:158px;}
@@ -85,7 +86,7 @@
   .m-row .del2{color:var(--expense);}
   .card.behind{pointer-events:none;}
   .card.ghost{position:fixed;z-index:2000;pointer-events:none;box-shadow:var(--card-shadow);}
-  .deck-empty{width:100%;text-align:center;color:var(--ink-soft);padding:30px 16px;border-radius:var(--r);box-shadow:inset -4px -4px 8px var(--hl),inset 5px 5px 11px var(--sd);}
+  .deck-empty{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;font-weight:700;cursor:pointer;color:var(--ink-soft);padding:30px 16px;border-radius:var(--r);box-shadow:inset -4px -4px 8px var(--hl),inset 5px 5px 11px var(--sd);}
   .busy{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--accent-ink);font-weight:700;padding:30px;border-radius:var(--r);box-shadow:inset -4px -4px 8px var(--hl),inset 5px 5px 11px var(--sd);}
   .grid{flex:0 1 auto;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:2px;}
   .cat{position:relative;border-radius:18px;background:var(--ground);padding:13px 14px;min-height:70px;cursor:pointer;
@@ -106,12 +107,6 @@
     font-weight:800;font-size:.9rem;display:grid;place-items:center;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 4px 10px var(--accent-shadow);}
   .deck .badge.tick{animation:tick .4s cubic-bezier(.2,.8,.3,1);}
   @keyframes tick{40%{transform:scale(1.25);}100%{transform:scale(1);}}
-  .done-sum{display:flex;flex-direction:column;gap:7px;text-align:left;}
-  .done-sum b{font-size:.98rem;color:var(--ink);}
-  .done-sum .row{display:flex;justify-content:space-between;gap:10px;font-size:.85rem;font-variant-numeric:tabular-nums;}
-  .done-sum .row span:first-child{display:flex;align-items:center;gap:7px;min-width:0;}
-  .done-sum .dot{width:9px;height:9px;border-radius:50%;flex:none;}
-  .done-sum small{color:var(--ink-faint);font-size:.75rem;}
   .cat .nm{font-weight:600;font-size:.92rem;display:flex;align-items:center;gap:7px;}
   .cat .nm .dot{width:9px;height:9px;border-radius:50%;flex:none;}
   .cat .tot{font-variant-numeric:tabular-nums;font-weight:700;font-size:1.02rem;}
@@ -317,7 +312,7 @@
   <div class="backupbar" id="backupbar" hidden><svg class="ic"><use href="#i-warning"/></svg><span class="t" id="backupbar-t"></span><button class="later" id="backup-later">Morgen</button><button class="go" id="backup-now">Sichern</button></div>
   <div class="deck-area">
     <div class="deck" id="deck"></div>
-    <div class="deck-empty" id="deck-empty" hidden>Keine offenen Ausgaben.<br>Lade einen Screenshot hoch.</div>
+    <label class="deck-empty" id="deck-empty" for="file" hidden><svg class="ic"><use href="#i-scan"/></svg>Neuen Screenshot hochladen</label>
     <div class="busy" id="busy" hidden><svg class="ic"><use href="#i-search"/></svg>Lese Screenshot…</div>
   </div>
   <div class="grid" id="grid"></div>
@@ -597,7 +592,7 @@
     if(!best||t.date>best.date||(t.date===best.date&&t.id>best.id))best=t;});return best;}
   function renderLast(){var el=$("#lastbar");var b=lastBooking();
     if(!b){el.hidden=true;return;}
-    el.hidden=false;el.innerHTML=ic("clock","sm")+esc("Neueste Buchung: "+deLabel(b.date)+" · "+(b.payee||"—")+" "+fmt(b.amount));}
+    el.hidden=false;el.innerHTML=ic("clock","sm")+'<span class="lb-t">'+esc("Neueste Buchung: "+deLabel(b.date)+" · "+(b.payee||"—")+" "+fmt(b.amount))+'</span>';}
   function daysSince(iso){return Math.floor((new Date(todayISO())-new Date(iso))/86400000);}
   function backupAgeText(){if(!state.lastBackup)return "Noch kein Backup gespeichert.";var d=daysSince(state.lastBackup);
     return "Letztes Backup: "+(d<=0?"heute":d===1?"gestern":"vor "+d+" Tagen")+".";}
@@ -607,7 +602,7 @@
     $("#backupbar-t").innerHTML=state.lastBackup?"<b>Zeit für ein Backup</b>"+esc(backupAgeText()):"<b>Noch kein Backup</b>Deine Daten liegen nur auf diesem Gerät.";}
   function saveBackup(){state.lastBackup=todayISO();state.backupSnooze=null;save();
     download("finanzen-backup-"+todayISO()+".json",JSON.stringify(state,null,2),"application/json");render();}
-  function render(){renderBalance();renderMonthbar();renderLast();renderBackupBar();renderDeck();renderGrid();renderBar();trackRound();save();}
+  function render(){renderBalance();renderMonthbar();renderLast();renderBackupBar();renderDeck();renderGrid();renderBar();save();}
   function renderSoft(){renderBalance();renderMonthbar();renderLast();renderGrid();renderBar();save();} // update everything except the deck (keeps the card being edited/dragged in place)
   function renderMonthbar(){$("#mb-label").textContent=periodLabel();$("#mb-sum").textContent="Ausgaben: "+fmt(periodExpense());}
   function renderBalance(){var b=balance();var el=$("#bal-val");el.textContent=fmt(b);el.classList.toggle("neg",b<0);
@@ -615,7 +610,7 @@
     $("#count").textContent="";}
   function renderBar(){var cash=viewAccount==="cash";$("#file-btn").hidden=cash;$("#withdraw").hidden=!cash;
     $("#tab-bank").classList.toggle("active",!cash);$("#tab-cash").classList.toggle("active",cash);}
-  function switchAccount(a){if(a===viewAccount)return;viewAccount=a;sortLog=[];render();}
+  function switchAccount(a){if(a===viewAccount)return;viewAccount=a;render();}
   function buildCard(tx){var c=document.createElement("div");c.dataset.id=tx.id;
     var inc=tx.kind==="income";c.className=inc?"card income":"card";
     var head='<div class="crow"><input class="payee" value="'+esc(tx.payee||"")+'" placeholder="'+(inc?"Einnahme, z. B. Gehalt…":"Empfänger…")+'"><button class="kindtog">'+(inc?"Einnahme":"Ausgabe")+ic("swap","sm")+'</button></div>';
@@ -631,16 +626,16 @@
   function deleteTx(id2){var t=state.transactions.filter(function(x){return x.id===id2;})[0];var tid=t&&t.transferId;
     state.transactions=state.transactions.filter(function(x){return x.id!==id2&&(!tid||x.transferId!==tid);});}
   function doAction(tx,a){
-    if(a==="del"){if(confirm(tx.transferId?"Diese Abhebung (Konto + Bargeld) löschen?":"Diese Buchung wirklich löschen?")){logOut(tx,null);deleteTx(tx.id);render();}}
+    if(a==="del"){if(confirm(tx.transferId?"Diese Abhebung (Konto + Bargeld) löschen?":"Diese Buchung wirklich löschen?")){deleteTx(tx.id);render();}}
     else if(a==="skip"){state.orderFloor=(state.orderFloor||0)-1;tx.deckOrder=state.orderFloor;render();}
-    else if(a==="pp"){logOut(tx,null);tx.awaitPaypal=true;tx.categoryId=null;render();}
+    else if(a==="pp"){tx.awaitPaypal=true;tx.categoryId=null;render();}
     else if(a==="cash"){var amt=Math.abs(tx.amount);if(amt<=0){alert("Bitte erst einen Betrag eintragen.");return;}
-      logOut(tx,null);var tid=id();tx.kind="transfer";tx.transferId=tid;tx.categoryId=null;tx.awaitPaypal=undefined;
+      var tid=id();tx.kind="transfer";tx.transferId=tid;tx.categoryId=null;tx.awaitPaypal=undefined;
       state.transactions.push({id:id(),account:"cash",kind:"transfer",amount:amt,payee:"Abhebung",date:tx.date||todayISO(),transferId:tid});render();}}
   function renderDeck(){var deck=$("#deck");deck.innerHTML="";
     Array.prototype.slice.call(document.querySelectorAll(".card.ghost")).forEach(function(g){g.remove();}); // clear any orphaned drag ghost
     var cards=unsortedCards();var empty=cards.length===0;
-    $("#deck-empty").hidden=!empty||!$("#busy").hidden;deck.hidden=empty;if(empty)renderDone();
+    $("#deck-empty").hidden=!empty||!$("#busy").hidden;deck.hidden=empty;
     var shown=cards.slice(0,3);
     for(var i=shown.length-1;i>=0;i--){(function(tx,i){var card=buildCard(tx);card.style.zIndex=String(10-i);
       card.style.transform="translateY("+(i*-12)+"px) scale("+(1-i*0.05)+")";if(i)card.style.filter="brightness("+(i===1?0.9:0.8)+")";
@@ -649,7 +644,7 @@
         card.querySelector(".payee").addEventListener("blur",function(e){tx.payee=e.target.value;save();});
         if(tx.kind==="income"){
           amt.addEventListener("blur",function(){tx.amount=Math.abs(toCents(amt.value));amt.value=fmt(tx.amount);renderSoft();});
-          card.querySelector(".credit").addEventListener("click",function(){tx.amount=Math.abs(toCents(amt.value));if(tx.amount<=0){alert("Bitte einen Betrag eingeben.");return;}logOut(tx,null);tx.credited=true;render();});
+          card.querySelector(".credit").addEventListener("click",function(){tx.amount=Math.abs(toCents(amt.value));if(tx.amount<=0){alert("Bitte einen Betrag eingeben.");return;}tx.credited=true;render();});
           card.querySelector(".kindtog").addEventListener("click",function(){toggleKind(tx);});
           Array.prototype.slice.call(card.querySelectorAll(".act")).forEach(function(btn){btn.addEventListener("click",function(){doAction(tx,btn.dataset.a);});});
         }else{
@@ -695,7 +690,7 @@
         try{card.releasePointerCapture(e.pointerId);}catch(_){}clearHi();
         if(!dragging){if(onTap)onTap(startT);return;}card.style.opacity="";if(ghost)ghost.remove();
         var box=boxAt(ev.clientX,ev.clientY);
-        if(box){tx.categoryId=parseInt(box.dataset.id,10);logOut(tx,tx.categoryId);render();}
+        if(box){tx.categoryId=parseInt(box.dataset.id,10);render();}
         else{var dx=ev.clientX-sx,dy=ev.clientY-sy;if(Math.abs(dx)>100||dy>80){doAction(tx,"skip");}}}
       card.addEventListener("pointermove",move);card.addEventListener("pointerup",end);card.addEventListener("pointercancel",end);});}
   function boxAt(x,y){var el=document.elementFromPoint(x,y);var c=el?el.closest(".cat"):null;return (c&&c.dataset.id)?c:null;}   // category boxes only (not "+ Box" or PayPal)
@@ -712,15 +707,6 @@
     if(ghost){ghost.classList.remove("stamped");ghost.style.backgroundColor="";}}
 
   /* ---------- sorting round (feeds the summary shown when the stack is empty) ---------- */
-  var sortLog=[],lastOpen=null;   // cards that left the stack this round: {cid,amount}; cid null = not sorted into a box
-  function logOut(tx,cid){sortLog.push({cid:cid,amount:tx.amount});}
-  function trackRound(){var n=unsortedCards().length;if(n&&lastOpen===0)sortLog=[];lastOpen=n;}   // a new round starts when cards arrive on an empty stack
-  function renderDone(){var el=$("#deck-empty"),sorted=sortLog.filter(function(e){return e.cid!=null;});
-    if(!sorted.length){el.innerHTML='Keine offenen Ausgaben.<br>Lade einen Screenshot hoch.';return;}
-    var per={},sum=0;sorted.forEach(function(e){per[e.cid]=(per[e.cid]||0)+e.amount;sum+=e.amount;});
-    var rows=Object.keys(per).map(Number).sort(function(a,b){return per[a]-per[b];}).map(function(cid){var c=state.categories[catIndex(cid)];
-      return '<div class="row"><span><span class="dot" style="background:'+catColor(cid)+'"></span>'+esc(c?c.name:"—")+'</span><span>'+fmt(per[cid])+'</span></div>';}).join("");
-    el.innerHTML='<div class="done-sum"><b>'+sorted.length+(sorted.length===1?' Buchung':' Buchungen')+' sortiert · '+fmt(sum)+'</b>'+rows+'<small>Neue Screenshots starten eine neue Runde.</small></div>';}
 
   /* ---------- category detail ---------- */
   function openCategory(cid,name,i){var items=catItems(cid);
