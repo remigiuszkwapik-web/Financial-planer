@@ -81,10 +81,9 @@
   .grid{flex:0 1 auto;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:2px;}
   .cat{position:relative;border-radius:18px;background:var(--ground);padding:13px 14px;min-height:70px;cursor:pointer;
     box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);transition:box-shadow .13s,transform .13s;display:flex;flex-direction:column;justify-content:center;gap:3px;}
-  .cat.on{--c:var(--lav);transform:translateY(-3px) scale(1.05);background:color-mix(in srgb,var(--c) 10%,var(--ground));
-    box-shadow:0 0 0 2.5px var(--c) inset,0 0 0 6px color-mix(in srgb,var(--c) 28%,transparent),0 10px 22px color-mix(in srgb,var(--c) 32%,transparent);}
-  .cat .pv{font-size:.72rem;font-weight:700;color:var(--expense);font-variant-numeric:tabular-nums;display:none;}
-  .cat.on .pv{display:block;}
+  /* hovered box: frame + glow drawn inside the box, so the grid's scroll area never clips an edge and the box keeps its size */
+  .cat.on{--c:var(--lav);background:color-mix(in srgb,var(--c) 12%,var(--ground));
+    box-shadow:inset 0 0 0 3px var(--c),inset 0 0 18px 2px color-mix(in srgb,var(--c) 45%,transparent);}
   body{transition:background-color .2s;}
   body.tinted{background:color-mix(in srgb,var(--tint) 16%,var(--ground));}
   .card.ghost{transition:background-color .15s;}
@@ -585,7 +584,7 @@
       pt.addEventListener("click",openPaypal);grid.appendChild(pt);}
     state.categories.forEach(function(cat,i){var total=catTotal(cat.id),count=catItems(cat.id).length;
       var box=document.createElement("div");box.className="cat";box.dataset.id=cat.id;box.style.setProperty("--c",PALETTE[i%PALETTE.length]);
-      box.innerHTML='<button class="x" title="Box löschen">✕</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="pv"></div><div class="cnt">'+count+(count===1?' Eintrag':' Einträge')+'</div>';
+      box.innerHTML='<button class="x" title="Box löschen">✕</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="cnt">'+count+(count===1?' Eintrag':' Einträge')+'</div>';
       box.addEventListener("click",function(){openCategory(cat.id,cat.name,i);});
       box.querySelector(".x").addEventListener("click",function(e){e.stopPropagation();
         if(count&&!confirm('"'+cat.name+'" löschen? Einträge wandern zurück in den Stapel.'))return;
@@ -618,11 +617,10 @@
   function boxAt(x,y){var el=document.elementFromPoint(x,y);var c=el?el.closest(".cat"):null;return (c&&c.dataset.id)?c:null;}   // category boxes only (not "+ Box" or PayPal)
   function catIndex(cid){for(var i=0;i<state.categories.length;i++)if(state.categories[i].id===cid)return i;return -1;}
   function catColor(cid){var i=catIndex(cid);return i>=0?PALETTE[i%PALETTE.length]:"#9aa0b5";}
-  // While a card hovers a box: the box lights up in its colour and previews its new total,
+  // While a card hovers a box: the box lights up with a frame in its colour,
   // the ghost card gets a stamp with the box name and the whole screen takes a faint tint of that colour.
   function highlight(x,y,tx,ghost){var b=boxAt(x,y),cur=document.querySelector(".cat.on");if(b===cur)return;clearHi(ghost);if(!b)return;
     var cid=parseInt(b.dataset.id,10),cat=state.categories[catIndex(cid)],col=catColor(cid);b.classList.add("on");
-    b.querySelector(".pv").textContent=inViewPeriod(tx)?"neu "+fmt(catTotal(cid)+tx.amount):"Buchung vom "+deLabel(tx.date);
     document.body.style.setProperty("--tint",col);document.body.classList.add("tinted");
     if(ghost){var st=ghost.querySelector(".stamp");st.textContent=cat?cat.name:"";st.style.color=col;ghost.classList.add("stamped");
       ghost.style.backgroundColor="color-mix(in srgb,"+col+" 24%,var(--card-bg))";}}
