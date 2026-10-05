@@ -6,7 +6,8 @@ kein Füllen (außer Punkte), Farbe immer über currentColor.
     python icons/build.py
 
 erzeugt svg/<name>.svg (einzeln, z. B. für den Figma-Import),
-sprite.svg (<symbol id="i-<name>">) und icons.js (window.ICONS + icon()).
+sprite.svg (<symbol id="i-<name>">) und icons.js (window.ICONS + icon())
+und schreibt die Symbole zwischen die icons-Marker in docs/index.html.
 """
 import json
 from pathlib import Path
@@ -117,6 +118,8 @@ ICONS = {
     # ---- Status
     "done": ("Status", "Alles sortiert", "🎉",
         '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.8 2.8L16.2 9.6"/>'),
+    "clock": ("Status", "Später ansehen / zuletzt", "🕘",
+        '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
     "search": ("Status", "Screenshot wird gelesen", "🔎",
         '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/>'),
     "warning": ("Status", "Hinweis", "⚠️",
@@ -150,6 +153,14 @@ def main():
     meta = [{"name": n, "group": g, "label": l, "replaces": r, "body": b}
             for n, (g, l, r, b) in ICONS.items()]
     (root / "icons.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1) + "\n")
+    app = root.parent / "docs" / "index.html"
+    html = app.read_text()
+    a, b = "<!-- icons:start -->", "<!-- icons:end -->"
+    if a in html:
+        head, rest = html.split(a, 1)
+        tail = rest.split(b, 1)[1]
+        app.write_text(head + a + '\n<svg xmlns="http://www.w3.org/2000/svg" style="display:none">\n'
+                       + symbols + "\n</svg>\n" + b + tail)
     print(len(ICONS), "Icons gebaut")
 
 

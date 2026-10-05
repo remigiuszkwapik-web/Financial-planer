@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#e5e6f0">
+<meta name="theme-color" content="#e6e8e3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#6f766f" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Finanzen">
@@ -13,20 +14,25 @@
 </head>
 <body>
 <style>
+  /* light: warm grey with a sage bias, graphite accent; dark: sage + graphite + lime (from the reference shot) */
   :root{
-    --ground:#e5e6f0;--hl:#fff;--sd:#c3c5d8;--ink:#484a66;--ink-soft:#7c7e9c;--ink-faint:#a6a8c2;
-    --lav:#8b7cf0;--income:#2ba98a;--expense:#dc6a54;
-    --card-bg:#3a3b54;--card-ink:#eef0fb;--card-faint:#8688ac;--card-income:#5fd7bb;--card-expense:#f4977f;
-    --card-shadow:0 14px 30px rgba(40,42,70,.34);--r:24px;
-    --good:#1d7f67;--bad:#b04a36;--lav-ink:#5d4fd0;
+    --ground:#e6e8e3;--hl:#fff;--sd:#c5c9c2;--ink:#3f453f;--ink-soft:#6d756c;--ink-faint:#9aa198;
+    --accent:#3c413c;--accent-ink:#3c413c;--accent-on:#cdf84f;--accent-soft:rgba(60,65,60,.1);--accent-shadow:rgba(30,34,30,.3);
+    --income:#2ba98a;--expense:#dc6a54;--pp:#2b74c7;
+    --card-bg:#3c413c;--card-ink:#f3f5f1;--card-faint:#9aa198;--card-income:#5fd7bb;--card-expense:#f4977f;
+    --card-shadow:0 14px 30px rgba(30,34,30,.32);--r:24px;
+    --good:#1d7f67;--bad:#b04a36;
   }
   @media (prefers-color-scheme:dark){:root{
-    --ground:#23242f;--hl:#2d2f3e;--sd:#141520;--ink:#dcdeee;--ink-soft:#9a9cba;--ink-faint:#6a6c88;
-    --lav:#a99bff;--income:#54cca6;--expense:#f0917f;
-    --card-bg:#ecedf8;--card-ink:#2b2c40;--card-faint:#9092b4;--card-income:#1f9e80;--card-expense:#d95f49;
-    --card-shadow:0 16px 34px rgba(0,0,0,.5);
-    --good:#54cca6;--bad:#f0917f;--lav-ink:#b9adff;
+    --ground:#6f766f;--hl:#858c85;--sd:#545a54;--ink:#fff;--ink-soft:#e4e8e2;--ink-faint:#cdd2cb;
+    --accent:#cdf84f;--accent-ink:#e4ff9c;--accent-on:#20241f;--accent-soft:rgba(205,248,79,.2);--accent-shadow:rgba(0,0,0,.25);
+    --income:#c4f5de;--expense:#ffc4b5;--pp:#cfe3ff;
+    --card-bg:#3c413c;--card-ink:#fff;--card-faint:#a7ada6;--card-income:#9be8c4;--card-expense:#ffb3a1;
+    --card-shadow:0 16px 34px rgba(0,0,0,.35);
+    --good:#c4f5de;--bad:#ffc4b5;
   }}
+  .ic{width:20px;height:20px;flex:none;display:inline-block;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .ic.sm{width:16px;height:16px;}
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{margin:0;background:var(--ground);color:var(--ink);overflow:hidden;
@@ -35,13 +41,13 @@
   .app{height:100dvh;max-width:520px;margin:0 auto;padding:14px 16px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;}
   header{display:flex;align-items:stretch;gap:11px;flex:none;}
   .tabs{flex:none;display:flex;gap:8px;padding:3px;border-radius:15px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
-  .tab{flex:1;border:none;background:transparent;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:.9rem;padding:9px;border-radius:12px;cursor:pointer;}
+  .tab{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;border:none;background:transparent;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:.9rem;padding:9px;border-radius:12px;cursor:pointer;}
   .tab.active{color:var(--ink);background:var(--ground);box-shadow:-3px -3px 6px var(--hl),4px 4px 8px var(--sd);}
   .bal{flex:1;display:flex;flex-direction:column;gap:2px;padding:6px 4px;}
   .bal-lbl{font-size:.66rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink-faint);font-weight:700;}
   .bal-val{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
   .bal-val.neg{color:var(--expense);}
-  .iconbtn{width:46px;border:none;border-radius:16px;background:var(--ground);color:var(--ink);font-size:1.1rem;cursor:pointer;flex:none;font-family:inherit;
+  .iconbtn{width:46px;display:grid;place-items:center;padding:0;border:none;border-radius:16px;background:var(--ground);color:var(--ink);font-size:1.1rem;cursor:pointer;flex:none;font-family:inherit;
     box-shadow:-4px -4px 9px var(--hl),5px 5px 11px var(--sd);}
   .iconbtn.sm{width:40px;height:40px;}
   .iconbtn:active{box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
@@ -50,7 +56,7 @@
   .monthbar .mb-mid{flex:1;text-align:center;display:flex;flex-direction:column;gap:1px;}
   .monthbar #mb-label{font-weight:700;font-size:1rem;}
   .monthbar #mb-sum{font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
-  .lastbar{flex:none;text-align:center;font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums;margin:-4px 0 -2px;}
+  .lastbar{flex:none;display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;font-size:.72rem;color:var(--ink-faint);font-variant-numeric:tabular-nums;margin:-4px 0 -2px;}
   .deck-area{flex:1 1 auto;position:relative;min-height:150px;display:flex;align-items:center;}
   .deck{position:relative;width:100%;height:158px;}
   .card{position:absolute;inset:0;border-radius:var(--r);background:var(--card-bg);color:var(--card-ink);box-shadow:var(--card-shadow);
@@ -62,30 +68,30 @@
   .card input{touch-action:none;}
   .card .crow{display:flex;align-items:center;gap:10px;}
   .card .crow .payee{width:auto;flex:1;min-width:0;}
-  .card .kindtog{flex:none;border:none;border-radius:999px;padding:6px 11px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;cursor:pointer;font-family:inherit;background:rgba(127,127,150,.2);color:var(--card-faint);white-space:nowrap;}
+  .card .kindtog{flex:none;display:flex;align-items:center;gap:5px;border:none;border-radius:999px;padding:6px 11px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;cursor:pointer;font-family:inherit;background:rgba(127,127,150,.2);color:var(--card-faint);white-space:nowrap;}
   .card.income .kindtog{color:var(--card-income);}
   .card .amount{font-variant-numeric:tabular-nums;font-size:2.3rem;font-weight:700;letter-spacing:-.02em;background:transparent;border:none;color:var(--card-expense);width:100%;padding:0;outline:none;font-family:inherit;}
   .card.income{border-left:6px solid var(--card-income);justify-content:flex-start;gap:4px;}
   .card.income .amount{color:var(--card-income);}
-  .card .credit{margin-top:auto;border:none;border-radius:13px;background:var(--card-income);color:#08231b;font-weight:700;font-size:.95rem;padding:12px;cursor:pointer;font-family:inherit;width:100%;}
+  .card .credit{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:auto;border:none;border-radius:13px;background:var(--card-income);color:#08231b;font-weight:700;font-size:.95rem;padding:12px;cursor:pointer;font-family:inherit;width:100%;}
   .card .credit:active{transform:scale(.98);}
   .card .incrow{display:flex;gap:8px;align-items:stretch;margin-top:auto;}
   .card .incrow .credit{flex:1;width:auto;min-width:0;margin-top:0;padding:10px;}
   .card .incrow .actions{margin-top:0;}
   .card .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:auto;}
-  .card .act{border:none;border-radius:11px;background:rgba(127,127,150,.2);color:var(--card-faint);font-size:1rem;padding:7px 11px;cursor:pointer;font-family:inherit;line-height:1;}
+  .card .act{display:grid;place-items:center;border:none;border-radius:11px;background:rgba(127,127,150,.2);color:var(--card-faint);font-size:1rem;padding:7px 11px;cursor:pointer;font-family:inherit;line-height:1;}
   .card .act.del{color:var(--card-expense);}
   .card .act:active{transform:scale(.94);}
   .m-row .del2{color:var(--expense);}
   .card.behind{pointer-events:none;}
   .card.ghost{position:fixed;z-index:2000;pointer-events:none;box-shadow:var(--card-shadow);}
   .deck-empty{width:100%;text-align:center;color:var(--ink-soft);padding:30px 16px;border-radius:var(--r);box-shadow:inset -4px -4px 8px var(--hl),inset 5px 5px 11px var(--sd);}
-  .busy{width:100%;text-align:center;color:var(--lav);font-weight:700;padding:30px;border-radius:var(--r);box-shadow:inset -4px -4px 8px var(--hl),inset 5px 5px 11px var(--sd);}
+  .busy{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--accent-ink);font-weight:700;padding:30px;border-radius:var(--r);box-shadow:inset -4px -4px 8px var(--hl),inset 5px 5px 11px var(--sd);}
   .grid{flex:0 1 auto;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:2px;}
   .cat{position:relative;border-radius:18px;background:var(--ground);padding:13px 14px;min-height:70px;cursor:pointer;
     box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);transition:box-shadow .13s,transform .13s;display:flex;flex-direction:column;justify-content:center;gap:3px;}
   /* hovered box: frame + glow drawn inside the box, so the grid's scroll area never clips an edge and the box keeps its size */
-  .cat.on{--c:var(--lav);background:color-mix(in srgb,var(--c) 12%,var(--ground));
+  .cat.on{--c:var(--accent);background:color-mix(in srgb,var(--c) 12%,var(--ground));
     box-shadow:inset 0 0 0 3px var(--c),inset 0 0 18px 2px color-mix(in srgb,var(--c) 45%,transparent);}
   body{transition:background-color .2s;}
   body.tinted{background:color-mix(in srgb,var(--tint) 16%,var(--ground));}
@@ -96,8 +102,8 @@
   .card.stamped .stamp{opacity:1;transform:rotate(-10deg) scale(1);}
   .card.stamp-right .stamp{left:auto;right:16px;}   /* card grabbed on its left half: keep the stamp clear of the finger */
   .card.stamped .actions{visibility:hidden;}
-  .deck .badge{position:absolute;right:18px;top:-15px;z-index:20;min-width:30px;height:30px;padding:0 9px;border-radius:15px;background:var(--lav);color:#fff;
-    font-weight:800;font-size:.9rem;display:grid;place-items:center;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 4px 10px rgba(80,60,200,.35);}
+  .deck .badge{position:absolute;right:18px;top:-15px;z-index:20;min-width:30px;height:30px;padding:0 9px;border-radius:15px;background:var(--accent);color:var(--accent-on);
+    font-weight:800;font-size:.9rem;display:grid;place-items:center;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 4px 10px var(--accent-shadow);}
   .deck .badge.tick{animation:tick .4s cubic-bezier(.2,.8,.3,1);}
   @keyframes tick{40%{transform:scale(1.25);}100%{transform:scale(1);}}
   .done-sum{display:flex;flex-direction:column;gap:7px;text-align:left;}
@@ -111,10 +117,10 @@
   .cat .tot{font-variant-numeric:tabular-nums;font-weight:700;font-size:1.02rem;}
   .cat .cnt{font-size:.7rem;color:var(--ink-faint);}
   .cat .x{position:absolute;top:5px;right:7px;background:none;border:none;color:var(--ink-faint);font-size:.78rem;cursor:pointer;font-family:inherit;line-height:1;padding:3px;}
-  .cat.add{align-items:center;justify-content:center;color:var(--lav);font-weight:700;box-shadow:-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
-  .cat.paypal{box-shadow:0 0 0 2px #2b74c7 inset,-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
-  .cat.paypal .nm{color:#2b74c7;}
-  .cat.paypal .tot{color:#2b74c7;font-size:.95rem;}
+  .cat.add{align-items:center;justify-content:center;flex-direction:row;gap:6px;color:var(--accent-ink);font-weight:700;box-shadow:-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
+  .cat.paypal{box-shadow:0 0 0 2px var(--pp) inset,-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
+  .cat.paypal .nm{color:var(--pp);}
+  .cat.paypal .tot{color:var(--pp);font-size:.95rem;}
   .pp-hint{font-size:.8rem;color:var(--ink-soft);line-height:1.35;}
   .cat.add:active{box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   .bar{flex:none;display:flex;gap:9px;}
@@ -122,7 +128,7 @@
     display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
   .bar .btn:active{box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   input[type=file]{display:none;}
-  .modal{position:fixed;inset:0;z-index:3000;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,21,32,.45);}
+  .modal{position:fixed;inset:0;z-index:3000;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,24,20,.45);}
   .sheet{width:100%;max-width:520px;max-height:80dvh;background:var(--ground);color:var(--ink);border-radius:24px 24px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 40px rgba(0,0,0,.35);}
   .sheet.tall{max-height:88dvh;}
   .sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
@@ -135,7 +141,7 @@
   .m-row .d{font-size:.72rem;color:var(--ink-faint);}
   .m-row .a{font-variant-numeric:tabular-nums;font-weight:700;color:var(--expense);}
   .m-row .a.pos{color:var(--income);}
-  .m-row .back{border:none;background:none;color:var(--lav);font-size:1.1rem;cursor:pointer;font-family:inherit;padding:2px 4px;}
+  .m-row .back{border:none;background:none;color:var(--accent-ink);display:grid;place-items:center;cursor:pointer;font-family:inherit;padding:2px 4px;}
   .m-empty{color:var(--ink-faint);font-style:italic;text-align:center;padding:24px;}
   .menu-item{display:flex;align-items:center;gap:12px;padding:15px 14px;border-radius:14px;background:var(--ground);cursor:pointer;font-weight:600;font-size:.95rem;
     box-shadow:-3px -3px 7px var(--hl),4px 4px 9px var(--sd);}
@@ -166,7 +172,7 @@
   .savechart .sv-tip{display:none;}
   .savechart .sv-tip.show{display:block;}
   .savechart .sv-cross{stroke:var(--ink-faint);stroke-width:1;stroke-dasharray:3 3;}
-  .savechart .sv-ring{fill:none;stroke:#2fb98f;stroke-width:2.5;}
+  .savechart .sv-ring{fill:none;stroke:var(--income);stroke-width:2.5;}
   .savechart .sv-bub{fill:var(--hl);stroke:var(--sd);stroke-width:1;}
   .savechart .sv-t1{fill:var(--ink);font-size:11px;font-weight:700;font-family:inherit;}
   .savechart .sv-t2{fill:var(--ink-soft);font-size:9px;font-family:inherit;}
@@ -174,12 +180,12 @@
   .sv-h{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;margin:2px 2px -4px;}
   .menu-item .badge{margin-left:auto;font-size:.78rem;font-weight:700;color:var(--expense);white-space:nowrap;}
   .m-row.dup{box-shadow:inset 0 0 0 1.5px var(--expense),inset -3px -3px 6px var(--hl),inset 3px 3px 7px var(--sd);}
-  .m-row .warn{color:var(--expense);font-size:1rem;flex:none;line-height:1;}
+  .m-row .warn{color:var(--expense);flex:none;}
   .hist-hint{font-size:.72rem;color:var(--ink-faint);line-height:1.35;margin:-4px 2px 0;}
   /* monthly report ("Wrapped") */
   .wr-sheet{max-height:92dvh;overflow-y:auto;gap:16px;animation:wrIn .35s cubic-bezier(.2,.7,.3,1);}
   @keyframes wrIn{from{transform:translateY(40px);opacity:0;}to{transform:none;opacity:1;}}
-  .wr-eyebrow{display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--lav-ink);min-width:0;}
+  .wr-eyebrow{display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink);min-width:0;}
   .wr-head{display:flex;flex-direction:column;gap:6px;}
   .wr-h{margin:0;font-size:1.75rem;line-height:1.12;font-weight:700;letter-spacing:-.02em;}
   .wr-sub{margin:0;font-size:.88rem;color:var(--ink-soft);}
@@ -195,16 +201,16 @@
   .wr-legend i{display:inline-block;width:2px;height:11px;background:var(--ink);}
   .wr-hl{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   .wr-ic{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;}
-  .wr-ic.lav{background:rgba(139,124,240,.2);color:var(--lav-ink);}
-  .wr-ic.good{background:rgba(43,169,138,.18);color:var(--good);}
-  .wr-ic.bad{background:rgba(220,106,84,.18);color:var(--bad);}
+  .wr-ic.acc{background:var(--accent-soft);color:var(--accent-ink);}
+  .wr-ic.good{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good);}
+  .wr-ic.bad{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad);}
   .wr-hl .t{flex:1;min-width:0;font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;}
   .wr-hl .n{font-size:.88rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
   .wr-hl .n.good{color:var(--good);}.wr-hl .n.bad{color:var(--bad);}
   .wr-bars{display:grid;grid-template-columns:minmax(0,96px) minmax(0,1fr) auto;gap:8px 10px;align-items:center;font-size:.8rem;}
   .wr-bars .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .wr-track{position:relative;height:10px;border-radius:6px;box-shadow:inset -2px -2px 4px var(--hl),inset 2px 2px 5px var(--sd);}
-  .wr-fill{height:100%;border-radius:6px;background:var(--lav);}
+  .wr-fill{height:100%;border-radius:6px;background:var(--accent);}
   .wr-fill.good{background:var(--income);}.wr-fill.bad{background:var(--expense);}
   .wr-avg{position:absolute;top:-3px;width:2px;height:16px;margin-left:-1px;background:var(--ink);}
   .wr-bars .am{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
@@ -221,60 +227,109 @@
   .mi-wrapped .sw{width:50px;height:30px;border-radius:15px;flex:none;position:relative;background:var(--ground);transition:background .2s;
     box-shadow:inset -2px -2px 5px var(--hl),inset 2px 2px 6px var(--sd);}
   .mi-wrapped .sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:12px;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25);transition:left .2s;}
-  .mi-wrapped input:checked+.sw{background:var(--lav);}
+  .mi-wrapped input:checked+.sw{background:var(--accent);}
   .mi-wrapped input:checked+.sw::after{left:23px;}
-  .mi-wrapped input:focus-visible+.sw{outline:2px solid var(--lav);outline-offset:2px;}
-  .mi-wrapped .open{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:none;border-radius:12px;background:var(--ground);color:var(--lav-ink);
+  .mi-wrapped input:focus-visible+.sw{outline:2px solid var(--accent);outline-offset:2px;}
+  .mi-wrapped .open{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:none;border-radius:12px;background:var(--ground);color:var(--accent-ink);
     font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;text-align:left;box-shadow:inset -3px -3px 7px var(--hl),inset 4px 4px 9px var(--sd);}
   [hidden]{display:none!important;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 
+<!-- icons:start -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-analysis" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-4M12 16V6M17 16V9"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13 7l4 4"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4L3.5 7.5 7 11M3.5 7.5H17M17 13l3.5 3.5L17 20M20.5 16.5H7"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V6.5A2.5 2.5 0 0 1 6.5 4H8M16 4h1.5A2.5 2.5 0 0 1 20 6.5V8M20 16v1.5a2.5 2.5 0 0 1-2.5 2.5H16M8 20H6.5A2.5 2.5 0 0 1 4 17.5V16M7.5 12h9"/></symbol>
+  <symbol id="i-income" viewBox="0 0 24 24"><path d="M12 3.5v10M7.5 9l4.5 4.5L16.5 9M4 14.5v3A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-3"/></symbol>
+  <symbol id="i-expense" viewBox="0 0 24 24"><path d="M12 13.5v-10M7.5 8L12 3.5 16.5 8M4 14.5v3A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-3"/></symbol>
+  <symbol id="i-withdraw" viewBox="0 0 24 24"><path d="M3.5 5h17"/><path d="M6.5 5v13a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V5"/><path d="M12 9v6.5M9.5 13l2.5 2.5 2.5-2.5"/></symbol>
+  <symbol id="i-deposit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
+  <symbol id="i-payout" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12h7"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-category" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+  <symbol id="i-account" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 9.5h18M7 15h3"/></symbol>
+  <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></symbol>
+  <symbol id="i-savings" viewBox="0 0 24 24"><path d="M4.5 12.5c0-3.3 3.2-5.5 7.5-5.5 1.3 0 2.5.2 3.6.6L18 6v3.4c.8.7 1.4 1.5 1.6 2.6H21v3.5h-1.6a6.6 6.6 0 0 1-1.9 2.2V20h-3v-1.3a10 10 0 0 1-5 0V20h-3v-2.6c-1.3-1.2-2-2.9-2-4.9z"/><path d="M10 9.8h3.5"/><circle cx="16.3" cy="11.6" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M17 7V5.5a1.5 1.5 0 0 0-1.5-1.5H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H19a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H6.5A2.5 2.5 0 0 1 4 4.5"/><circle cx="16" cy="13.5" r="1.2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 3.5V8H8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="i-reconcile" viewBox="0 0 24 24"><path d="M4 6h10M4 11h10M4 16h5"/><path d="M13 17l2.5 2.5L21 14"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-calendar-month" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M7.5 15h9"/></symbol>
+  <symbol id="i-calendar-day" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><rect x="13" y="13" width="3.5" height="3.5" rx="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-salary" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M15 9a3.8 3.8 0 1 0 0 6M8 11h5M8 13.5h5"/></symbol>
+  <symbol id="i-report" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></symbol>
+  <symbol id="i-trend-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-trend-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2.5l3.5 3.5L17 9.5"/><path d="M3.5 11V9.5A3.5 3.5 0 0 1 7 6h13.5"/><path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 13v1.5A3.5 3.5 0 0 1 17 18H3.5"/></symbol>
+  <symbol id="i-clean" viewBox="0 0 24 24"><path d="M16.5 3L13 10.5"/><path d="M8 10.5h9l1.5 3.5h-12z"/><path d="M6.5 14l-1.5 6.5h14L17.5 14"/><path d="M10 17v3.5M14 17v3.5"/></symbol>
+  <symbol id="i-export-csv" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.5 12.5h7v5h-7zM12 12.5v5M8.5 15h7"/></symbol>
+  <symbol id="i-export-md" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/></symbol>
+  <symbol id="i-backup" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><path d="M12 11.5v6M9.5 15l2.5 2.5 2.5-2.5"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><path d="M12 17.5v-6M9.5 14l2.5-2.5 2.5 2.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 3.5h4"/><path d="M6 7l.9 12.2A2 2 0 0 0 8.9 21h6.2a2 2 0 0 0 2-1.8L18 7"/><path d="M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-done" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.8 2.8L16.2 9.6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/></symbol>
+  <symbol id="i-warning" viewBox="0 0 24 24"><path d="M10.3 4.6L2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17h.01"/></symbol>
+</svg>
+<!-- icons:end -->
 <div class="app">
   <div class="tabs">
-    <button class="tab active" id="tab-bank">💳 Konto</button>
-    <button class="tab" id="tab-cash">💵 Bargeld</button>
+    <button class="tab active" id="tab-bank"><svg class="ic"><use href="#i-account"/></svg>Konto</button>
+    <button class="tab" id="tab-cash"><svg class="ic"><use href="#i-cash"/></svg>Bargeld</button>
   </div>
   <header>
     <div class="bal"><span class="bal-lbl"><span id="bal-title">Kontostand</span><span id="count"></span></span><span class="bal-val" id="bal-val">…</span></div>
-    <button class="iconbtn" id="analysis-btn" title="Monatsanalyse">📊</button>
-    <button class="iconbtn" id="menu-btn" title="Menü">⋯</button>
+    <button class="iconbtn" id="analysis-btn" title="Monatsanalyse" aria-label="Monatsanalyse"><svg class="ic"><use href="#i-analysis"/></svg></button>
+    <button class="iconbtn" id="menu-btn" title="Menü" aria-label="Menü"><svg class="ic"><use href="#i-more"/></svg></button>
   </header>
   <div class="monthbar">
-    <button class="iconbtn sm" id="m-prev">‹</button>
+    <button class="iconbtn sm" id="m-prev" aria-label="Vorheriger Zeitraum"><svg class="ic"><use href="#i-chevron-left"/></svg></button>
     <div class="mb-mid"><span id="mb-label">—</span><span id="mb-sum"></span></div>
-    <button class="iconbtn sm" id="m-next">›</button>
+    <button class="iconbtn sm" id="m-next" aria-label="Nächster Zeitraum"><svg class="ic"><use href="#i-chevron-right"/></svg></button>
   </div>
   <div class="lastbar" id="lastbar" hidden></div>
   <div class="deck-area">
     <div class="deck" id="deck"></div>
-    <div class="deck-empty" id="deck-empty" hidden>Keine offenen Ausgaben 🎉<br>Lade einen Screenshot hoch.</div>
-    <div class="busy" id="busy" hidden>Lese Screenshot… 🔎</div>
+    <div class="deck-empty" id="deck-empty" hidden>Keine offenen Ausgaben.<br>Lade einen Screenshot hoch.</div>
+    <div class="busy" id="busy" hidden><svg class="ic"><use href="#i-search"/></svg>Lese Screenshot…</div>
   </div>
   <div class="grid" id="grid"></div>
   <div class="bar">
-    <label class="btn" id="file-btn" for="file"><span>📷</span> Screenshot</label>
+    <label class="btn" id="file-btn" for="file"><svg class="ic"><use href="#i-scan"/></svg>Screenshot</label>
     <input type="file" id="file" accept="image/*" multiple />
-    <button class="btn" id="blank"><span>✏️</span> Ausgabe</button>
-    <button class="btn" id="income"><span>➕</span> Einnahme</button>
-    <button class="btn" id="withdraw" hidden><span>💵</span> Abheben</button>
+    <button class="btn" id="blank"><svg class="ic"><use href="#i-expense"/></svg>Ausgabe</button>
+    <button class="btn" id="income"><svg class="ic"><use href="#i-income"/></svg>Einnahme</button>
+    <button class="btn" id="withdraw" hidden><svg class="ic"><use href="#i-withdraw"/></svg>Abheben</button>
   </div>
 </div>
 
 <div class="modal" id="modal" hidden><div class="sheet">
-  <div class="sheet-head"><span class="t" id="m-title"></span><button class="iconbtn sm" id="m-close">✕</button></div>
+  <div class="sheet-head"><span class="t" id="m-title"></span><button class="iconbtn sm" id="m-close" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
   <div class="sheet-total" id="m-total"></div>
   <div class="sheet-list" id="m-list"></div>
 </div></div>
 
 <div class="modal" id="analysis" hidden><div class="sheet tall">
-  <div class="sheet-head"><span class="t">📊 Monatsanalyse</span><button class="iconbtn sm" id="a-close">✕</button></div>
+  <div class="sheet-head"><span class="t"><svg class="ic"><use href="#i-analysis"/></svg>Monatsanalyse</span><button class="iconbtn sm" id="a-close" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
   <div class="a-highlights" id="a-highlights"></div>
   <div class="sheet-list" id="a-list"></div>
 </div></div>
 
 <div class="modal" id="histmodal" hidden><div class="sheet tall">
-  <div class="sheet-head"><span class="t">📜 Gesamtverlauf</span><button class="iconbtn sm" id="hist-close">✕</button></div>
+  <div class="sheet-head"><span class="t"><svg class="ic"><use href="#i-history"/></svg>Gesamtverlauf</span><button class="iconbtn sm" id="hist-close" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
   <div class="sheet-total" id="hist-balance"></div>
   <div class="hist-hint">Alle Buchungen dieses Kontos – neueste zuerst, mit laufendem Saldo. Die oberste Saldo-Zeile ist dein aktueller Kontostand.</div>
   <div class="pp-hint" id="hist-dupnote" hidden></div>
@@ -282,25 +337,25 @@
 </div></div>
 
 <div class="modal" id="savemodal" hidden><div class="sheet tall">
-  <div class="sheet-head"><span class="t">🐷 Sparkonto</span><button class="iconbtn sm" id="sv-close">✕</button></div>
+  <div class="sheet-head"><span class="t"><svg class="ic"><use href="#i-savings"/></svg>Sparkonto</span><button class="iconbtn sm" id="sv-close" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
   <div class="sheet-total" id="sv-balance"></div>
   <div id="sv-chart"></div>
   <div class="a-highlights" id="sv-quote"></div>
   <div class="sv-actions">
-    <label class="btn" for="sv-file"><span>📷</span> Screenshot</label>
+    <label class="btn" for="sv-file"><svg class="ic"><use href="#i-scan"/></svg>Screenshot</label>
     <input type="file" id="sv-file" accept="image/*" multiple />
-    <button class="btn" id="sv-in"><span>➕</span> Einzahlung</button>
-    <button class="btn" id="sv-out"><span>➖</span> Abhebung</button>
+    <button class="btn" id="sv-in"><svg class="ic"><use href="#i-deposit"/></svg>Einzahlung</button>
+    <button class="btn" id="sv-out"><svg class="ic"><use href="#i-payout"/></svg>Abhebung</button>
   </div>
   <div class="sv-actions">
-    <button class="btn" id="sv-unit">€ ⇄ %</button>
-    <button class="btn" id="sv-setbal"><span>🎯</span> Stand setzen</button>
+    <button class="btn" id="sv-unit"><svg class="ic"><use href="#i-swap"/></svg>€ / %</button>
+    <button class="btn" id="sv-setbal"><svg class="ic"><use href="#i-target"/></svg>Stand setzen</button>
   </div>
   <div class="sheet-list" id="sv-list"></div>
 </div></div>
 
 <div class="modal" id="wrapped" hidden><div class="sheet tall wr-sheet" role="dialog" aria-modal="true" aria-labelledby="wr-h">
-  <div class="sheet-head"><span class="wr-eyebrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L16 16M6 16l2.5-2.5M15.5 8.5L16 6"/></svg><span id="wr-eyebrow"></span></span><button class="iconbtn sm" id="wr-x" aria-label="Schließen">✕</button></div>
+  <div class="sheet-head"><span class="wr-eyebrow"><svg class="ic sm" aria-hidden="true"><use href="#i-report"/></svg><span id="wr-eyebrow"></span></span><button class="iconbtn sm" id="wr-x" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
   <div class="wr-head"><h2 class="wr-h" id="wr-h"></h2><p class="wr-sub" id="wr-sub"></p></div>
   <div class="wr-kpis" id="wr-kpis"></div>
   <div class="wr-sec" id="wr-hls"></div>
@@ -309,44 +364,44 @@
 </div></div>
 
 <div class="modal" id="menu" hidden><div class="sheet">
-  <div class="sheet-head"><span class="t">Menü</span><button class="iconbtn sm" id="menu-close">✕</button></div>
+  <div class="sheet-head"><span class="t">Menü</span><button class="iconbtn sm" id="menu-close" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
   <div class="sheet-list">
-    <div class="menu-item" id="mi-balance">💰 Kontostand setzen</div>
-    <div class="menu-item" id="mi-history">📜 Gesamtverlauf</div>
-    <div class="menu-item" id="mi-savings">🐷 Sparkonto</div>
+    <div class="menu-item" id="mi-balance"><svg class="ic"><use href="#i-wallet"/></svg>Kontostand setzen</div>
+    <div class="menu-item" id="mi-history"><svg class="ic"><use href="#i-history"/></svg>Gesamtverlauf</div>
+    <div class="menu-item" id="mi-savings"><svg class="ic"><use href="#i-savings"/></svg>Sparkonto</div>
     <div class="mi-wrapped">
-      <label class="row" for="wr-toggle"><span class="wr-ic lav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></svg></span>
+      <label class="row" for="wr-toggle"><span class="wr-ic acc"><svg class="ic"><use href="#i-report"/></svg></span>
         <span class="tt"><b>Monatsbericht</b><small>Zum Start jedes Zeitraums als Pop-up</small></span>
         <input type="checkbox" id="wr-toggle" /><span class="sw" aria-hidden="true"></span></label>
-      <button class="open" id="wr-open"><span id="wr-open-lbl">Letzten Bericht ansehen</span><span aria-hidden="true">›</span></button>
+      <button class="open" id="wr-open"><span id="wr-open-lbl">Letzten Bericht ansehen</span><svg class="ic sm" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
     </div>
-    <div class="menu-item" id="mi-period">🗓 Zeitraum einstellen</div>
-    <div class="menu-item" id="mi-clean">🧹 Empfänger bereinigen</div>
-    <div class="menu-item" id="mi-csv">⬇ Excel (CSV) exportieren</div>
-    <div class="menu-item" id="mi-md">⬇ Markdown exportieren</div>
-    <div class="menu-item" id="mi-backup">💾 Backup speichern</div>
-    <label class="menu-item" for="restore">📂 Backup wiederherstellen</label>
+    <div class="menu-item" id="mi-period"><svg class="ic"><use href="#i-calendar"/></svg>Zeitraum einstellen</div>
+    <div class="menu-item" id="mi-clean"><svg class="ic"><use href="#i-clean"/></svg>Empfänger bereinigen</div>
+    <div class="menu-item" id="mi-csv"><svg class="ic"><use href="#i-export-csv"/></svg>Excel (CSV) exportieren</div>
+    <div class="menu-item" id="mi-md"><svg class="ic"><use href="#i-export-md"/></svg>Markdown exportieren</div>
+    <div class="menu-item" id="mi-backup"><svg class="ic"><use href="#i-backup"/></svg>Backup speichern</div>
+    <label class="menu-item" for="restore"><svg class="ic"><use href="#i-restore"/></svg>Backup wiederherstellen</label>
     <input type="file" id="restore" accept="application/json,.json" />
-    <div class="menu-item danger" id="mi-reset">🗑 Alle Daten löschen</div>
+    <div class="menu-item danger" id="mi-reset"><svg class="ic"><use href="#i-trash"/></svg>Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-09-30 · Monatsbericht</div>
+    <div class="pp-hint" id="app-version">Version: 2026-10-05 · Icons & Salbei</div>
   </div>
 </div></div>
 
 <div class="modal" id="permodal" hidden><div class="sheet">
-  <div class="sheet-head"><span class="t">🗓 Zeitraum</span><button class="iconbtn sm" id="per-close">✕</button></div>
+  <div class="sheet-head"><span class="t"><svg class="ic"><use href="#i-calendar"/></svg>Zeitraum</span><button class="iconbtn sm" id="per-close" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
   <div class="pp-hint">Wie wird ein Zeitraum auf der Hauptseite definiert?</div>
   <div class="sheet-list">
-    <div class="menu-item" id="per-calendar">🗓 Kalendermonat (1. bis Monatsende)</div>
-    <div class="menu-item" id="per-salary">💶 Ab Gehaltseingang (über Schwelle)</div>
-    <div class="menu-item" id="per-day">📅 Fester Stichtag im Monat</div>
+    <div class="menu-item" id="per-calendar"><svg class="ic"><use href="#i-calendar-month"/></svg>Kalendermonat (1. bis Monatsende)</div>
+    <div class="menu-item" id="per-salary"><svg class="ic"><use href="#i-salary"/></svg>Ab Gehaltseingang (über Schwelle)</div>
+    <div class="menu-item" id="per-day"><svg class="ic"><use href="#i-calendar-day"/></svg>Fester Stichtag im Monat</div>
     <div class="pp-hint" id="per-status"></div>
   </div>
 </div></div>
 
 <div class="modal" id="ppmodal" hidden><div class="sheet tall">
-  <div class="sheet-head"><span class="t">🅿️ PayPal abgleichen</span><button class="iconbtn sm" id="pp-close">✕</button></div>
-  <label class="menu-item" for="pp-file">📷 PayPal-Screenshot abgleichen</label>
+  <div class="sheet-head"><span class="t"><svg class="ic"><use href="#i-reconcile"/></svg>PayPal abgleichen</span><button class="iconbtn sm" id="pp-close" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
+  <label class="menu-item" for="pp-file"><svg class="ic"><use href="#i-scan"/></svg>PayPal-Screenshot abgleichen</label>
   <input type="file" id="pp-file" accept="image/*" />
   <div class="pp-hint" id="pp-hint">Diese Konto-Buchungen zeigen nur „PayPal". Schick den PayPal-Screenshot – der echte Händler wird zugeordnet, dann kannst du die Karte normal sortieren.</div>
   <div class="sheet-list" id="pp-list"></div>
@@ -355,7 +410,8 @@
 <script>
 (function(){
   "use strict";
-  var PALETTE=["#8b7cf0","#f0955f","#3cbfa2","#e585ba","#6aa9f0","#c58cf0","#f0c25f","#5fbf9a"];
+  var PALETTE=["#7c9a3c","#f0955f","#3cbfa2","#e585ba","#6aa9f0","#a8876a","#f0c25f","#5fbf9a"];
+  function ic(n,cls){return '<svg class="ic'+(cls?" "+cls:"")+'" aria-hidden="true"><use href="#i-'+n+'"/></svg>';}
   var MONTHS_DE=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
   var TESS_URL="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
 
@@ -516,9 +572,9 @@
     // large invisible tap targets carry the values for the tooltip
     var hits=points.map(function(p,i){return '<circle class="hit" data-i="'+i+'" cx="'+X(i).toFixed(1)+'" cy="'+Y(p.balance).toFixed(1)+'" r="14" fill="transparent" data-m="'+esc(monthLabel(p.month))+'" data-v="'+esc(fmt(p.balance))+'" data-d="'+esc((p.net>0?"+":"")+fmt(p.net))+'"/>';}).join("");
     var tip='<g class="sv-tip"><line class="sv-cross" y1="'+padT+'" y2="'+(H-padB)+'"/><circle class="sv-ring" r="4.5"/><rect class="sv-bub" rx="6" ry="6"/><text class="sv-t1"></text><text class="sv-t2"></text></g>';
-    return '<svg class="savechart" viewBox="0 0 '+W+' '+H+'"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fb98f" stop-opacity=".33"/><stop offset="1" stop-color="#2fb98f" stop-opacity="0"/></linearGradient></defs>'
-      +'<path d="'+area+'" fill="url(#sg)"/><path d="'+line+'" fill="none" stroke="#2fb98f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
-      +'<g fill="#2fb98f">'+dots+'</g>'+xl+lab+hits+tip+'</svg>';}
+    return '<svg class="savechart" viewBox="0 0 '+W+' '+H+'"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--income)" stop-opacity=".33"/><stop offset="1" style="stop-color:var(--income)" stop-opacity="0"/></linearGradient></defs>'
+      +'<path d="'+area+'" fill="url(#sg)"/><path d="'+line+'" fill="none" style="stroke:var(--income)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+      +'<g style="fill:var(--income)">'+dots+'</g>'+xl+lab+hits+tip+'</svg>';}
 
   /* ---------- render ---------- */
   var $=function(s){return document.querySelector(s);};
@@ -526,7 +582,7 @@
     if(!best||t.date>best.date||(t.date===best.date&&t.id>best.id))best=t;});return best;}
   function renderLast(){var el=$("#lastbar");var b=lastBooking();
     if(!b){el.hidden=true;return;}
-    el.hidden=false;el.textContent="🕘 Neueste Buchung: "+deLabel(b.date)+" · "+(b.payee||"—")+" "+fmt(b.amount);}
+    el.hidden=false;el.innerHTML=ic("clock","sm")+esc("Neueste Buchung: "+deLabel(b.date)+" · "+(b.payee||"—")+" "+fmt(b.amount));}
   function render(){renderBalance();renderMonthbar();renderLast();renderDeck();renderGrid();renderBar();trackRound();save();}
   function renderSoft(){renderBalance();renderMonthbar();renderLast();renderGrid();renderBar();save();} // update everything except the deck (keeps the card being edited/dragged in place)
   function renderMonthbar(){$("#mb-label").textContent=periodLabel();$("#mb-sum").textContent="Ausgaben: "+fmt(periodExpense());}
@@ -538,11 +594,11 @@
   function switchAccount(a){if(a===viewAccount)return;viewAccount=a;sortLog=[];render();}
   function buildCard(tx){var c=document.createElement("div");c.dataset.id=tx.id;
     var inc=tx.kind==="income";c.className=inc?"card income":"card";
-    var head='<div class="crow"><input class="payee" value="'+esc(tx.payee||"")+'" placeholder="'+(inc?"Einnahme, z. B. Gehalt…":"Empfänger…")+'"><button class="kindtog">'+(inc?"Einnahme ⇄":"Ausgabe ⇄")+'</button></div>';
+    var head='<div class="crow"><input class="payee" value="'+esc(tx.payee||"")+'" placeholder="'+(inc?"Einnahme, z. B. Gehalt…":"Empfänger…")+'"><button class="kindtog">'+(inc?"Einnahme":"Ausgabe")+ic("swap","sm")+'</button></div>';
     var amount='<input class="amount" inputmode="decimal" value="'+fmt(inc?Math.abs(tx.amount):tx.amount)+'">';
     var bankExp=!inc&&(tx.account||"bank")==="bank";
-    var acts='<div class="actions">'+(inc?'':'<button class="act" data-a="pp" title="Zu PayPal legen">🅿️</button>')+(bankExp?'<button class="act" data-a="cash" title="Als Abhebung ins Bargeld">💵</button>':'')+'<button class="act" data-a="skip" title="Später ansehen">⏭</button><button class="act del" data-a="del" title="Löschen">🗑</button></div>';
-    c.innerHTML=head+amount+(inc?'<div class="incrow"><button class="credit" title="Dem Konto gutschreiben">＋ Gutschreiben</button>'+acts+'</div>':acts);   // income: one bottom row so the card keeps the deck height
+    var acts='<div class="actions">'+(inc?'':'<button class="act" data-a="pp" title="Zu PayPal legen" aria-label="Zu PayPal legen">'+ic("reconcile")+'</button>')+(bankExp?'<button class="act" data-a="cash" title="Als Abhebung ins Bargeld" aria-label="Als Abhebung ins Bargeld">'+ic("withdraw")+'</button>':'')+'<button class="act" data-a="skip" title="Später ansehen" aria-label="Später ansehen">'+ic("clock")+'</button><button class="act del" data-a="del" title="Löschen" aria-label="Löschen">'+ic("trash")+'</button></div>';
+    c.innerHTML=head+amount+(inc?'<div class="incrow"><button class="credit" title="Dem Konto gutschreiben">'+ic("plus","sm")+'Gutschreiben</button>'+acts+'</div>':acts);   // income: one bottom row so the card keeps the deck height
     return c;}
   function toggleKind(tx){
     if(tx.kind==="income"){tx.kind="expense";tx.amount=-Math.abs(tx.amount);tx.credited=undefined;tx.categoryId=null;}
@@ -584,18 +640,18 @@
   function renderGrid(){var grid=$("#grid");grid.innerHTML="";
     var ph=paypalHolding();
     if(ph.length){var pt=document.createElement("div");pt.className="cat paypal";
-      pt.innerHTML='<div class="nm">🅿️ PayPal</div><div class="tot">'+ph.length+' offen</div><div class="cnt">zum Abgleichen</div>';
+      pt.innerHTML='<div class="nm">'+ic("reconcile","sm")+'PayPal</div><div class="tot">'+ph.length+' offen</div><div class="cnt">zum Abgleichen</div>';
       pt.addEventListener("click",openPaypal);grid.appendChild(pt);}
     state.categories.forEach(function(cat,i){var total=catTotal(cat.id),count=catItems(cat.id).length;
       var box=document.createElement("div");box.className="cat";box.dataset.id=cat.id;box.style.setProperty("--c",PALETTE[i%PALETTE.length]);
-      box.innerHTML='<button class="x" title="Box löschen">✕</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="cnt">'+count+(count===1?' Eintrag':' Einträge')+'</div>';
+      box.innerHTML='<button class="x" title="Box löschen" aria-label="Box löschen">'+ic("close","sm")+'</button><div class="nm"><span class="dot" style="background:'+PALETTE[i%PALETTE.length]+'"></span>'+esc(cat.name)+'</div><div class="tot">'+fmt(total)+'</div><div class="cnt">'+count+(count===1?' Eintrag':' Einträge')+'</div>';
       box.addEventListener("click",function(){openCategory(cat.id,cat.name,i);});
       box.querySelector(".x").addEventListener("click",function(e){e.stopPropagation();
         if(count&&!confirm('"'+cat.name+'" löschen? Einträge wandern zurück in den Stapel.'))return;
         allTx().forEach(function(t){if(t.categoryId===cat.id)t.categoryId=null;});
         state.categories=state.categories.filter(function(c){return c.id!==cat.id;});render();});
       grid.appendChild(box);});
-    var add=document.createElement("div");add.className="cat add";add.textContent="＋ Box";
+    var add=document.createElement("div");add.className="cat add";add.innerHTML=ic("plus")+"Box";
     add.addEventListener("click",function(){var n=(prompt("Name der neuen Kategorie-Box:")||"").trim();if(n){state.categories.push({id:id(),name:n});render();}});
     grid.appendChild(add);}
 
@@ -636,7 +692,7 @@
   function logOut(tx,cid){sortLog.push({cid:cid,amount:tx.amount});}
   function trackRound(){var n=unsortedCards().length;if(n&&lastOpen===0)sortLog=[];lastOpen=n;}   // a new round starts when cards arrive on an empty stack
   function renderDone(){var el=$("#deck-empty"),sorted=sortLog.filter(function(e){return e.cid!=null;});
-    if(!sorted.length){el.innerHTML='Keine offenen Ausgaben 🎉<br>Lade einen Screenshot hoch.';return;}
+    if(!sorted.length){el.innerHTML='Keine offenen Ausgaben.<br>Lade einen Screenshot hoch.';return;}
     var per={},sum=0;sorted.forEach(function(e){per[e.cid]=(per[e.cid]||0)+e.amount;sum+=e.amount;});
     var rows=Object.keys(per).map(Number).sort(function(a,b){return per[a]-per[b];}).map(function(cid){var c=state.categories[catIndex(cid)];
       return '<div class="row"><span><span class="dot" style="background:'+catColor(cid)+'"></span>'+esc(c?c.name:"—")+'</span><span>'+fmt(per[cid])+'</span></div>';}).join("");
@@ -649,7 +705,7 @@
     var list=$("#m-list");list.innerHTML="";
     if(!items.length)list.innerHTML='<div class="m-empty">Noch keine Einträge — zieh eine Karte hierher.</div>';
     items.forEach(function(it){var row=document.createElement("div");row.className="m-row";
-      row.innerHTML='<div class="p">'+esc(it.payee||"—")+'<div class="d">'+(it.date||"")+'</div></div><span class="a '+(it.amount>0?"pos":"")+'">'+fmt(it.amount)+'</span><button class="back" title="Zurück in den Stapel">↩</button><button class="back del2" title="Löschen">🗑</button>';
+      row.innerHTML='<div class="p">'+esc(it.payee||"—")+'<div class="d">'+(it.date||"")+'</div></div><span class="a '+(it.amount>0?"pos":"")+'">'+fmt(it.amount)+'</span><button class="back" title="Zurück in den Stapel" aria-label="Zurück in den Stapel">'+ic("undo")+'</button><button class="back del2" title="Löschen" aria-label="Löschen">'+ic("trash")+'</button>';
       row.querySelector(".back").addEventListener("click",function(){it.categoryId=null;render();openCategory(cid,name,i);});
       row.querySelector(".del2").addEventListener("click",function(){if(confirm("Diese Buchung löschen?")){deleteTx(it.id);render();openCategory(cid,name,i);}});
       list.appendChild(row);});
@@ -693,7 +749,7 @@
     var a=viewAccount;
     $("#hist-balance").textContent=fmt(accountBalance(a));
     var dups=duplicateMap(a),dupN=Object.keys(dups).length,note=$("#hist-dupnote");
-    if(dupN){note.hidden=false;note.innerHTML="⚠️ "+dupN+" mögliche Doppelbuchung"+(dupN===1?"":"en")+" erkannt – unten rot markiert. Prüfe und lösche, was doppelt ist.";}
+    if(dupN){note.hidden=false;note.innerHTML=ic("warning","sm")+" "+dupN+" mögliche Doppelbuchung"+(dupN===1?"":"en")+" erkannt – unten rot markiert. Prüfe und lösche, was doppelt ist.";}
     else note.hidden=true;
     var rows=historyRows(a).reverse();   // newest first
     var list=$("#hist-list");list.innerHTML="";
@@ -702,10 +758,10 @@
       var row=document.createElement("div");row.className="m-row"+(isDup?" dup":"");
       var meta=(t.date?deLabel(t.date):"—")+" · "+(r.counts?"Saldo "+fmt(r.run):"noch nicht gebucht");
       var name=esc(t.payee||(t.kind==="transfer"?"Abhebung":(pos?"Einnahme":"Ausgabe")));
-      row.innerHTML=(isDup?'<span class="warn" title="Mögliche Doppelbuchung">⚠️</span>':'')
+      row.innerHTML=(isDup?'<span class="warn" title="Mögliche Doppelbuchung">'+ic("warning")+'</span>':'')
         +'<div class="p">'+name+'<div class="d">'+meta+'</div></div>'
         +'<span class="a '+(pos?"pos":"")+'">'+(pos?"+":"")+fmt(t.amount)+'</span>'
-        +'<button class="back del2" title="Löschen">🗑</button>';
+        +'<button class="back del2" title="Löschen" aria-label="Löschen">'+ic("trash")+'</button>';
       row.querySelector(".del2").addEventListener("click",function(){if(confirm("Diese Buchung wirklich löschen?")){deleteTx(t.id);render();renderHistory();}});
       list.appendChild(row);});
   }
@@ -719,7 +775,7 @@
     var unit=state.savingsUnit==="pct"?"pct":"eur";
     $("#sv-balance").textContent=fmt(accountBalance("savings"));
     var pts=savingsSeries();
-    $("#sv-chart").innerHTML=pts.length?savingsChartSVG(pts):'<div class="sv-empty">Noch keine Sparbewegungen.<br>Füttere per 📷, ➕ oder ➖.</div>';
+    $("#sv-chart").innerHTML=pts.length?savingsChartSVG(pts):'<div class="sv-empty">Noch keine Sparbewegungen.<br>Füttere per Screenshot, Einzahlung oder Abhebung.</div>';
     var txs=savingsTx();
     var totalNet=txs.reduce(function(a,b){return a+b.amount;},0);
     var inc=incomeByMonth(),totalIncome=0;Object.keys(inc).forEach(function(k){totalIncome+=inc[k];});
@@ -745,7 +801,7 @@
     if(moves.length){
       var h2=document.createElement("div");h2.className="sv-h";h2.textContent="Bewegungen";list.appendChild(h2);
       moves.forEach(function(t){var row=document.createElement("div");row.className="m-row";var pos=t.amount>=0;
-        row.innerHTML='<div class="p">'+esc(t.payee||(pos?"Einzahlung":"Abhebung"))+'<div class="d">'+(t.date?deLabel(t.date):"")+'</div></div><div class="a '+(pos?"pos":"")+'">'+(pos?"+":"")+fmt(t.amount)+'</div><button class="back sv-del">🗑</button>';
+        row.innerHTML='<div class="p">'+esc(t.payee||(pos?"Einzahlung":"Abhebung"))+'<div class="d">'+(t.date?deLabel(t.date):"")+'</div></div><div class="a '+(pos?"pos":"")+'">'+(pos?"+":"")+fmt(t.amount)+'</div><button class="back sv-del" title="Löschen" aria-label="Löschen">'+ic("trash")+'</button>';
         row.querySelector(".sv-del").addEventListener("click",function(){if(confirm("Diese Sparbewegung löschen?")){deleteTx(t.id);save();renderSavingsSheet();}});
         list.appendChild(row);});
     }
@@ -757,7 +813,7 @@
     var chain=Promise.resolve(),any=false;
     Array.prototype.slice.call(files).forEach(function(f){chain=chain.then(function(){
       return ocrImage(f).then(function(text){var rows=parseTransactions(text);if(rows.length){addSavingsRows(rows);any=true;}}).catch(function(){});});});
-    chain.then(function(){if(!any){bal.textContent=old;alert("Keine Beträge erkannt. Du kannst manuell ➕ oder ➖ eingeben.");}save();renderSavingsSheet();});}
+    chain.then(function(){if(!any){bal.textContent=old;alert("Keine Beträge erkannt. Du kannst manuell eine Einzahlung oder Abhebung eingeben.");}save();renderSavingsSheet();});}
   $("#mi-savings").addEventListener("click",function(){closeMenu();openSavings();});
   $("#sv-close").addEventListener("click",function(){$("#savemodal").hidden=true;});
   $("#savemodal").addEventListener("click",function(e){if(e.target===$("#savemodal"))$("#savemodal").hidden=true;});
@@ -827,7 +883,7 @@
     if(!ph.length)list.innerHTML='<div class="m-empty">Kein offener PayPal-Posten.</div>';
     ph.forEach(function(tx){
       var row=document.createElement("div");row.className="m-row";
-      row.innerHTML='<div class="p">'+esc(tx.payee||"PayPal")+'<div class="d">'+(tx.date||"")+'</div></div><span class="a">'+fmt(tx.amount)+'</span><button class="back" title="Ohne Abgleich sortieren">↩</button><button class="back del2" title="Löschen">🗑</button>';
+      row.innerHTML='<div class="p">'+esc(tx.payee||"PayPal")+'<div class="d">'+(tx.date||"")+'</div></div><span class="a">'+fmt(tx.amount)+'</span><button class="back" title="Ohne Abgleich sortieren" aria-label="Ohne Abgleich sortieren">'+ic("undo")+'</button><button class="back del2" title="Löschen" aria-label="Löschen">'+ic("trash")+'</button>';
       row.querySelector(".back").addEventListener("click",function(){tx.awaitPaypal=undefined;render();openPaypal();});
       row.querySelector(".del2").addEventListener("click",function(){if(confirm("Diese Buchung löschen?")){deleteTx(tx.id);render();openPaypal();}});
       list.appendChild(row);
@@ -838,20 +894,19 @@
   $("#ppmodal").addEventListener("click",function(e){if(e.target===$("#ppmodal"))$("#ppmodal").hidden=true;});
   $("#pp-file").addEventListener("change",function(e){
     var f=e.target.files[0];e.target.value="";if(!f)return;
-    $("#pp-hint").textContent="Lese PayPal-Screenshot… 🔎";
+    $("#pp-hint").textContent="Lese PayPal-Screenshot…";
     ocrImage(f).then(function(text){
       var rows=parseTransactions(text).map(function(r){return {amount:r.amount,payee:r.payee,dateISO:parseDateLabel(r.dateLabel)};});
       var res=matchPaypal(paypalHolding(),rows,5);
       res.assignments.forEach(function(a){var tx=state.transactions.filter(function(t){return t.id===a.id;})[0];if(tx){tx.payee=a.merchant;tx.awaitPaypal=undefined;}});
       render();openPaypal();
       $("#pp-hint").textContent="Fertig: "+res.assignments.length+" zugeordnet (zurück im Stapel), "+paypalHolding().length+" noch offen"+(res.unmatched.length?", "+res.unmatched.length+" PayPal-Zeile(n) ohne Konto-Gegenstück (ignoriert)":"")+".";
-    }).catch(function(){$("#pp-hint").textContent="OCR nicht verfügbar – bitte online sein und erneut versuchen, oder ↩ zum manuellen Sortieren nutzen.";});
+    }).catch(function(){$("#pp-hint").textContent="OCR nicht verfügbar – bitte online sein und erneut versuchen, oder die Posten über „Ohne Abgleich sortieren“ manuell einordnen.";});
   });
 
   /* ---------- monthly report ("Wrapped") — deterministic, rule-based ---------- */
-  function svgIcon(d,w){return '<svg width="'+(w||18)+'" height="'+(w||18)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg>';}
-  var WR_ICON={down:"M12 5v14M6 13l6 6 6-6",up:"M12 19V5M6 11l6-6 6 6",spark:"M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6",
-    receipt:"M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6",repeat:"M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"};
+  function svgIcon(name,w){return '<svg class="ic" width="'+(w||18)+'" height="'+(w||18)+'" style="width:'+(w||18)+'px;height:'+(w||18)+'px" aria-hidden="true"><use href="#i-'+name+'"/></svg>';}
+  var WR_ICON={down:"trend-down",up:"trend-up",spark:"report",receipt:"receipt",repeat:"repeat"};
   function fmtE(c){return Math.round(c/100).toLocaleString("de-DE")+" €";}
   function wrCounts(t){return !!t.date&&t.kind!=="transfer"&&acc(t)!=="savings"&&!(t.kind==="income"&&t.credited===false);}
   function periodStats(p){var s={expense:0,income:0,cats:{},list:[],payees:{}};
@@ -901,12 +956,12 @@
         hls.push({score:Math.abs(d),icon:d<0?"down":"up",tone:d<0?"good":"bad",
           text:cur===0?n+" – diesmal gar nichts":(d<0?n+" war günstiger als sonst":n+" war teurer als sonst"),
           val:cur===0?"0 €":(d<0?"−":"+")+Math.round(Math.abs(d)*100)+" %"});}
-      else if(k&&cur>=5000)hls.push({score:0.5,icon:"spark",tone:"lav",text:"Neu dabei: "+n,val:fmtE(cur)});});
+      else if(k&&cur>=5000)hls.push({score:0.5,icon:"spark",tone:"acc",text:"Neu dabei: "+n,val:fmtE(cur)});});
     var usual={};recent.forEach(function(o){Object.keys(o.s.payees).forEach(function(n){usual[n]=1;});});   // rent & co. are no highlight
     var big=s.list.filter(function(x){return !usual[x.payee.trim()];}).sort(function(a,b){return b.amount-a.amount;})[0];
-    if(big)hls.push({score:0.3,icon:"receipt",tone:"lav",text:"Größte Ausgabe: "+big.payee,val:fmtE(big.amount)});
+    if(big)hls.push({score:0.3,icon:"receipt",tone:"acc",text:"Größte Ausgabe: "+big.payee,val:fmtE(big.amount)});
     var fav=null;Object.keys(s.payees).forEach(function(n){if(!fav||s.payees[n]>s.payees[fav])fav=n;});
-    if(fav&&s.payees[fav]>=3)hls.push({score:0.25,icon:"repeat",tone:"lav",text:"Am häufigsten: "+fav,val:s.payees[fav]+"×"});
+    if(fav&&s.payees[fav]>=3)hls.push({score:0.25,icon:"repeat",tone:"acc",text:"Am häufigsten: "+fav,val:s.payees[fav]+"×"});
     hls.sort(function(a,b){return b.score-a.score;});
 
     // category bars: this period vs. the recent average
@@ -932,7 +987,7 @@
       '<div class="wr-kpi"><div class="k">Einnahmen</div><div class="v">'+fmtE(r.s.income)+'</div>'+wrDelta(r.incPct,"%",false)+'</div>'+
       '<div class="wr-kpi"><div class="k">Sparquote</div><div class="v">'+(r.quote==null?"—":r.quote+" %")+'</div>'+wrDelta(r.quoteDelta,"pkt",false)+'</div>';
     $("#wr-hls").innerHTML=r.hls.length?'<div class="wr-lbl">Highlights</div>'+r.hls.map(function(h){
-      return '<div class="wr-hl"><span class="wr-ic '+h.tone+'">'+svgIcon(WR_ICON[h.icon])+'</span><span class="t">'+esc(h.text)+'</span><span class="n '+(h.tone==="lav"?"":h.tone)+'">'+esc(h.val)+'</span></div>';}).join(""):"";
+      return '<div class="wr-hl"><span class="wr-ic '+h.tone+'">'+svgIcon(WR_ICON[h.icon])+'</span><span class="t">'+esc(h.text)+'</span><span class="n '+(h.tone==="acc"?"":h.tone)+'">'+esc(h.val)+'</span></div>';}).join(""):"";
     $("#wr-cats").innerHTML=r.cats.length?'<div class="wr-lbl"><span>Kategorien</span>'+(r.k?'<span class="wr-legend"><i></i>Ø '+(r.k===1?"Vormonat":r.k+" Monate")+'</span>':'')+'</div><div class="wr-bars">'+
       r.cats.map(function(c){var tone=!r.k||!c.av?"":c.cur<c.av*0.9?"good":c.cur>c.av*1.1?"bad":"";
         return '<span class="nm">'+esc(c.name)+'</span><div class="wr-track"><div class="wr-fill '+tone+'" style="width:'+(c.cur/r.max*100).toFixed(1)+'%"></div>'+
@@ -957,12 +1012,12 @@
   /* ---------- menu / balance / backup / export ---------- */
   function openMenu(){updateStorageStatus();updateHistoryBadge();updateWrappedMenu();$("#menu").hidden=false;}function closeMenu(){$("#menu").hidden=true;}
   function updateHistoryBadge(){var el=$("#mi-history");if(!el)return;var n=duplicateCount(viewAccount);
-    el.innerHTML='📜 Gesamtverlauf'+(n?'<span class="badge">⚠️ '+n+' doppelt</span>':'');}
+    el.innerHTML=ic("history")+'Gesamtverlauf'+(n?'<span class="badge">'+n+' doppelt</span>':'');}
   function updateStorageStatus(){var el=$("#storage-status");if(!el)return;el.textContent="Speicher wird geprüft…";
     var p=(navigator.storage&&navigator.storage.persisted)?navigator.storage.persisted():Promise.resolve(null);
     var e=(navigator.storage&&navigator.storage.estimate)?navigator.storage.estimate():Promise.resolve({usage:0});
     Promise.all([p,e]).then(function(r){var pd=r[0],kb=Math.round((r[1].usage||0)/1024);
-      el.textContent="Speicher: "+(pd===true?"dauerhaft ✓":pd===false?"nicht garantiert ⚠️ – App zum Home-Bildschirm hinzufügen & regelmäßig Backup speichern":"Status unbekannt")+" · belegt ~"+kb+" KB";
+      el.textContent="Speicher: "+(pd===true?"dauerhaft":pd===false?"nicht garantiert – App zum Home-Bildschirm hinzufügen & regelmäßig Backup speichern":"Status unbekannt")+" · belegt ~"+kb+" KB";
     }).catch(function(){el.textContent="";});}
   $("#menu-btn").addEventListener("click",openMenu);
   $("#menu-close").addEventListener("click",closeMenu);
