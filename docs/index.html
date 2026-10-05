@@ -14,12 +14,12 @@
 </head>
 <body>
 <style>
-  /* light: warm grey with a sage bias, graphite accent; dark: sage + graphite + lime (from the reference shot) */
+  /* light: warm grey with a sage bias, graphite accent and graphite card; dark: sage + lime (from the reference shot) with an off-white card */
   :root{
     --ground:#e6e8e3;--hl:#fff;--sd:#c5c9c2;--ink:#3f453f;--ink-soft:#6d756c;--ink-faint:#9aa198;
     --accent:#3c413c;--accent-ink:#3c413c;--accent-on:#cdf84f;--accent-soft:rgba(60,65,60,.1);--accent-shadow:rgba(30,34,30,.3);
     --income:#2ba98a;--expense:#dc6a54;--pp:#2b74c7;
-    --card-bg:#3c413c;--card-ink:#f3f5f1;--card-faint:#9aa198;--card-income:#5fd7bb;--card-expense:#f4977f;
+    --card-bg:#3c413c;--card-ink:#f3f5f1;--card-faint:#9aa198;--card-income:#5fd7bb;--card-expense:#f4977f;--card-on-income:#08231b;
     --card-shadow:0 14px 30px rgba(30,34,30,.32);--r:24px;
     --good:#1d7f67;--bad:#b04a36;
   }
@@ -27,8 +27,8 @@
     --ground:#6f766f;--hl:#858c85;--sd:#545a54;--ink:#fff;--ink-soft:#e4e8e2;--ink-faint:#cdd2cb;
     --accent:#cdf84f;--accent-ink:#e4ff9c;--accent-on:#20241f;--accent-soft:rgba(205,248,79,.2);--accent-shadow:rgba(0,0,0,.25);
     --income:#c4f5de;--expense:#ffc4b5;--pp:#cfe3ff;
-    --card-bg:#3c413c;--card-ink:#fff;--card-faint:#a7ada6;--card-income:#9be8c4;--card-expense:#ffb3a1;
-    --card-shadow:0 16px 34px rgba(0,0,0,.35);
+    --card-bg:#eef0ec;--card-ink:#2b302b;--card-faint:#6d756c;--card-income:#1a7d61;--card-expense:#b84a35;--card-on-income:#fff;
+    --card-shadow:0 16px 34px rgba(30,34,30,.35);
     --good:#c4f5de;--bad:#ffc4b5;
   }}
   .ic{width:20px;height:20px;flex:none;display:inline-block;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
@@ -73,7 +73,7 @@
   .card .amount{font-variant-numeric:tabular-nums;font-size:2.3rem;font-weight:700;letter-spacing:-.02em;background:transparent;border:none;color:var(--card-expense);width:100%;padding:0;outline:none;font-family:inherit;}
   .card.income{border-left:6px solid var(--card-income);justify-content:flex-start;gap:4px;}
   .card.income .amount{color:var(--card-income);}
-  .card .credit{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:auto;border:none;border-radius:13px;background:var(--card-income);color:#08231b;font-weight:700;font-size:.95rem;padding:12px;cursor:pointer;font-family:inherit;width:100%;}
+  .card .credit{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:auto;border:none;border-radius:13px;background:var(--card-income);color:var(--card-on-income);font-weight:700;font-size:.95rem;padding:12px;cursor:pointer;font-family:inherit;width:100%;}
   .card .credit:active{transform:scale(.98);}
   .card .incrow{display:flex;gap:8px;align-items:stretch;margin-top:auto;}
   .card .incrow .credit{flex:1;width:auto;min-width:0;margin-top:0;padding:10px;}
