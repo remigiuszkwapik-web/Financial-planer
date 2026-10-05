@@ -1,0 +1,157 @@
+"""Baut das Icon-Paket aus einer einzigen Quelle.
+
+Regeln für jedes Icon: 24×24-Raster, 2 px Strich, runde Enden und Ecken,
+kein Füllen (außer Punkte), Farbe immer über currentColor.
+
+    python icons/build.py
+
+erzeugt svg/<name>.svg (einzeln, z. B. für den Figma-Import),
+sprite.svg (<symbol id="i-<name>">) und icons.js (window.ICONS + icon()).
+"""
+import json
+from pathlib import Path
+
+# name: (Gruppe, Bezeichnung, ersetzt, SVG-Inhalt)
+ICONS = {
+    # ---- Navigation & Aktionen
+    "analysis": ("Navigation", "Monatsanalyse", "📊",
+        '<path d="M4 20h16M7 16v-4M12 16V6M17 16V9"/>'),
+    "more": ("Navigation", "Menü", "⋯",
+        '<circle cx="5.5" cy="12" r="1.5" fill="currentColor" stroke="none"/>'
+        '<circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>'
+        '<circle cx="18.5" cy="12" r="1.5" fill="currentColor" stroke="none"/>'),
+    "chevron-left": ("Navigation", "Zurück", "‹", '<path d="M14.5 6l-6 6 6 6"/>'),
+    "chevron-right": ("Navigation", "Weiter", "›", '<path d="M9.5 6l6 6-6 6"/>'),
+    "close": ("Navigation", "Schließen", "✕", '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>'),
+    "check": ("Navigation", "Übernehmen", "✓", '<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+    "undo": ("Navigation", "Rückgängig", "↩",
+        '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
+    "plus": ("Navigation", "Hinzufügen", "＋", '<path d="M12 5v14M5 12h14"/>'),
+    "minus": ("Navigation", "Abziehen", "−", '<path d="M5 12h14"/>'),
+    "edit": ("Navigation", "Bearbeiten", "✎",
+        '<path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13 7l4 4"/>'),
+    "swap": ("Navigation", "€ / % umschalten", "⇄",
+        '<path d="M7 4L3.5 7.5 7 11M3.5 7.5H17M17 13l3.5 3.5L17 20M20.5 16.5H7"/>'),
+
+    # ---- Buchungen
+    "scan": ("Buchungen", "Screenshot einlesen", "📷",
+        '<path d="M4 8V6.5A2.5 2.5 0 0 1 6.5 4H8M16 4h1.5A2.5 2.5 0 0 1 20 6.5V8M20 16v1.5a2.5 2.5 0 0 1-2.5 2.5H16M8 20H6.5A2.5 2.5 0 0 1 4 17.5V16M7.5 12h9"/>'),
+    "income": ("Buchungen", "Einnahme", "➕",
+        '<path d="M12 3.5v10M7.5 9l4.5 4.5L16.5 9M4 14.5v3A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-3"/>'),
+    "expense": ("Buchungen", "Ausgabe", "✏️",
+        '<path d="M12 13.5v-10M7.5 8L12 3.5 16.5 8M4 14.5v3A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-3"/>'),
+    "withdraw": ("Buchungen", "Bargeld abheben", "💵",
+        '<path d="M3.5 5h17"/><path d="M6.5 5v13a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V5"/><path d="M12 9v6.5M9.5 13l2.5 2.5 2.5-2.5"/>'),
+    "deposit": ("Buchungen", "Einzahlung", "➕",
+        '<circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/>'),
+    "payout": ("Buchungen", "Abhebung", "➖",
+        '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12h7"/>'),
+    "target": ("Buchungen", "Stand setzen", "🎯",
+        '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/>'
+        '<circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>'),
+    "category": ("Buchungen", "Kategorie-Box", "—",
+        '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/>'
+        '<rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'),
+
+    # ---- Konten
+    "account": ("Konten", "Konto", "💳",
+        '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 9.5h18M7 15h3"/>'),
+    "cash": ("Konten", "Bargeld", "💵",
+        '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'),
+    "savings": ("Konten", "Sparkonto", "🐷",
+        '<path d="M4.5 12.5c0-3.3 3.2-5.5 7.5-5.5 1.3 0 2.5.2 3.6.6L18 6v3.4c.8.7 1.4 1.5 1.6 2.6H21v3.5h-1.6'
+        'a6.6 6.6 0 0 1-1.9 2.2V20h-3v-1.3a10 10 0 0 1-5 0V20h-3v-2.6c-1.3-1.2-2-2.9-2-4.9z"/>'
+        '<path d="M10 9.8h3.5"/><circle cx="16.3" cy="11.6" r="1" fill="currentColor" stroke="none"/>'),
+    "wallet": ("Konten", "Kontostand", "💰",
+        '<path d="M17 7V5.5a1.5 1.5 0 0 0-1.5-1.5H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H19a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H6.5A2.5 2.5 0 0 1 4 4.5"/>'
+        '<circle cx="16" cy="13.5" r="1.2" fill="currentColor" stroke="none"/>'),
+    "history": ("Konten", "Gesamtverlauf", "📜",
+        '<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 3.5V8H8"/><path d="M12 8v4l3 2"/>'),
+    "reconcile": ("Konten", "PayPal abgleichen", "🅿️",
+        '<path d="M4 6h10M4 11h10M4 16h5"/><path d="M13 17l2.5 2.5L21 14"/>'),
+
+    # ---- Zeitraum
+    "calendar": ("Zeitraum", "Zeitraum", "🗓",
+        '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+    "calendar-month": ("Zeitraum", "Kalendermonat", "🗓",
+        '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M7.5 15h9"/>'),
+    "calendar-day": ("Zeitraum", "Fester Stichtag", "📅",
+        '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
+        '<rect x="13" y="13" width="3.5" height="3.5" rx="1" fill="currentColor" stroke="none"/>'),
+    "salary": ("Zeitraum", "Ab Gehaltseingang", "💶",
+        '<circle cx="12" cy="12" r="8.5"/><path d="M15 9a3.8 3.8 0 1 0 0 6M8 11h5M8 13.5h5"/>'),
+
+    # ---- Monatsbericht (aus der App übernommen, angeglichen)
+    "report": ("Monatsbericht", "Monatsbericht", "✨",
+        '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>'),
+    "trend-down": ("Monatsbericht", "Weniger als zuvor", "↓",
+        '<path d="M12 5v14M6 13l6 6 6-6"/>'),
+    "trend-up": ("Monatsbericht", "Mehr als zuvor", "↑",
+        '<path d="M12 19V5M6 11l6-6 6 6"/>'),
+    "receipt": ("Monatsbericht", "Größte Ausgabe", "🧾",
+        '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>'),
+    "repeat": ("Monatsbericht", "Am häufigsten", "🔁",
+        '<path d="M17 2.5l3.5 3.5L17 9.5"/><path d="M3.5 11V9.5A3.5 3.5 0 0 1 7 6h13.5"/>'
+        '<path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 13v1.5A3.5 3.5 0 0 1 17 18H3.5"/>'),
+
+    # ---- Daten & Menü
+    "clean": ("Daten", "Empfänger bereinigen", "🧹",
+        '<path d="M16.5 3L13 10.5"/><path d="M8 10.5h9l1.5 3.5h-12z"/><path d="M6.5 14l-1.5 6.5h14L17.5 14"/><path d="M10 17v3.5M14 17v3.5"/>'),
+    "export-csv": ("Daten", "Excel (CSV) exportieren", "⬇",
+        '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'
+        '<path d="M8.5 12.5h7v5h-7zM12 12.5v5M8.5 15h7"/>'),
+    "export-md": ("Daten", "Markdown exportieren", "⬇",
+        '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'
+        '<path d="M9 13h6M9 17h4"/>'),
+    "download": ("Daten", "Herunterladen", "⬇",
+        '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/>'),
+    "backup": ("Daten", "Backup speichern", "💾",
+        '<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/>'
+        '<path d="M12 11.5v6M9.5 15l2.5 2.5 2.5-2.5"/>'),
+    "restore": ("Daten", "Backup wiederherstellen", "📂",
+        '<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/>'
+        '<path d="M12 17.5v-6M9.5 14l2.5-2.5 2.5 2.5"/>'),
+    "trash": ("Daten", "Alle Daten löschen", "🗑",
+        '<path d="M4 7h16M10 3.5h4"/><path d="M6 7l.9 12.2A2 2 0 0 0 8.9 21h6.2a2 2 0 0 0 2-1.8L18 7"/><path d="M10 11v6M14 11v6"/>'),
+
+    # ---- Status
+    "done": ("Status", "Alles sortiert", "🎉",
+        '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.8 2.8L16.2 9.6"/>'),
+    "search": ("Status", "Screenshot wird gelesen", "🔎",
+        '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/>'),
+    "warning": ("Status", "Hinweis", "⚠️",
+        '<path d="M10.3 4.6L2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0z"/>'
+        '<path d="M12 9.5v4M12 17h.01"/>'),
+}
+
+ATTRS = ('viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+         'stroke-linecap="round" stroke-linejoin="round"')
+
+
+def main():
+    root = Path(__file__).parent
+    (root / "svg").mkdir(exist_ok=True)
+    for name, (_, _, _, body) in ICONS.items():
+        (root / "svg" / f"{name}.svg").write_text(
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" {ATTRS}>{body}</svg>\n')
+    symbols = "\n".join(f'  <symbol id="i-{n}" viewBox="0 0 24 24">{b}</symbol>'
+                        for n, (_, _, _, b) in ICONS.items())
+    (root / "sprite.svg").write_text(
+        f'<svg xmlns="http://www.w3.org/2000/svg" style="display:none" fill="none" stroke="currentColor" '
+        f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n{symbols}\n</svg>\n')
+    data = {n: b for n, (_, _, _, b) in ICONS.items()}
+    (root / "icons.js").write_text(
+        "/* Generiert von icons/build.py – nicht von Hand ändern. */\n"
+        f"window.ICONS = {json.dumps(data, ensure_ascii=False, indent=0)};\n"
+        "window.icon = function (name, size) {\n"
+        "  var s = size || 20;\n"
+        f"  return '<svg class=\"ic\" width=\"' + s + '\" height=\"' + s + '\" {ATTRS} aria-hidden=\"true\">' + window.ICONS[name] + '</svg>';\n"
+        "};\n")
+    meta = [{"name": n, "group": g, "label": l, "replaces": r, "body": b}
+            for n, (g, l, r, b) in ICONS.items()]
+    (root / "icons.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1) + "\n")
+    print(len(ICONS), "Icons gebaut")
+
+
+if __name__ == "__main__":
+    main()
