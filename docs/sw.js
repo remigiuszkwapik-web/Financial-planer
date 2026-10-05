@@ -1,6 +1,6 @@
 // Offline support for the Financial Planer PWA. Caches everything it fetches so
 // the app (and, after the first online use, the OCR engine) works offline.
-const CACHE = "finanzen-v19-incomecard";
+const CACHE = "finanzen-v20-fresh";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -12,8 +12,11 @@ self.addEventListener("activate", (e) => {
 });
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  // Own files are revalidated with the server every time (cheap via ETag), so a new version
+  // shows up on the next start instead of after the host's HTTP cache expires.
+  const own = new URL(e.request.url).origin === self.location.origin;
   e.respondWith(
-    fetch(e.request).then((res) => {
+    fetch(e.request, own ? { cache: "no-cache" } : undefined).then((res) => {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
       return res;
