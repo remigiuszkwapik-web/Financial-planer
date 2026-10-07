@@ -693,7 +693,7 @@
           ghost=card.cloneNode(true);ghost.classList.add("ghost","dragging");ghost.style.width=rect.width+"px";ghost.style.height=rect.height+"px";ghost.style.inset="auto";document.body.appendChild(ghost);card.style.opacity="0";}
         if(ev.cancelable)ev.preventDefault();var tilt=Math.max(-7,Math.min(7,dx/16));
         var left=ev.clientX-offX,top=ev.clientY-offY,mx=0,my=0,sc=1,m=magnetBox(ev.clientX,ev.clientY);
-        if(m)sc=1-.6*Math.max(0,Math.min(1,1-m.dist/SHRINK));   // shrinks smoothly from 100 % down to 40 % on the box
+        if(m)sc=1-.7*Math.max(0,Math.min(1,1-m.dist/SHRINK));   // shrinks smoothly from 100 % down to 30 % on the box
         if(m&&m.dist<=MAGNET){var r=m.box.getBoundingClientRect(),k=.35+.45*(1-m.dist/MAGNET);   // closer = stronger pull
           mx=(r.left+r.width/2-(left+rect.width/2))*k;my=(r.top+r.height/2-(top+rect.height/2))*k;}
         ghost.style.left=left+"px";ghost.style.top=top+"px";ghost.style.transform="translate("+mx+"px,"+my+"px) rotate("+tilt+"deg) scale("+sc+")";
