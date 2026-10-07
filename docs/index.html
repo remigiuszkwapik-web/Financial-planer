@@ -96,13 +96,8 @@
     box-shadow:inset 0 0 0 3px var(--c),inset 0 0 18px 2px color-mix(in srgb,var(--c) 45%,transparent);}
   body{transition:background-color .2s;}
   body.tinted{background:color-mix(in srgb,var(--tint) 16%,var(--ground));}
-  .card.ghost{transition:background-color .15s;}
-  .card .stamp{position:absolute;left:16px;bottom:16px;transform:rotate(-10deg) scale(.85);border:3px solid currentColor;border-radius:10px;padding:2px 10px;
-    font-weight:800;font-size:1rem;text-transform:uppercase;letter-spacing:.06em;background:var(--card-bg);opacity:0;pointer-events:none;
-    transition:opacity .12s,transform .18s cubic-bezier(.2,.8,.3,1);max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .card.stamped .stamp{opacity:1;transform:rotate(-10deg) scale(1);}
-  .card.stamp-right .stamp{left:auto;right:16px;}   /* card grabbed on its left half: keep the stamp clear of the finger */
-  .card.stamped .actions{visibility:hidden;}
+  .card.ghost{transition:background-color .15s,transform .14s ease-out;}   /* eases the pull and shrink when a box catches the card */
+  .card.docked .actions{visibility:hidden;}
   .deck .badge{position:absolute;right:18px;top:-15px;z-index:20;min-width:30px;height:30px;padding:0 9px;border-radius:15px;background:var(--accent);color:var(--accent-on);
     font-weight:800;font-size:.9rem;display:grid;place-items:center;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 4px 10px var(--accent-shadow);}
   .deck .badge.tick{animation:tick .4s cubic-bezier(.2,.8,.3,1);}
@@ -690,33 +685,43 @@
   function enableDrag(card,tx,onTap){
     card.addEventListener("touchmove",function(e){e.preventDefault();},{passive:false});
     card.addEventListener("pointerdown",function(e){if(e.button&&e.button!==0)return;var startT=e.target;
-      var sx=e.clientX,sy=e.clientY,dragging=false,ghost=null;var rect=card.getBoundingClientRect(),offX=e.clientX-rect.left,offY=e.clientY-rect.top;
+      var sx=e.clientX,sy=e.clientY,dragging=false,ghost=null,hot=null;var rect=card.getBoundingClientRect(),offX=e.clientX-rect.left,offY=e.clientY-rect.top;
       try{card.setPointerCapture(e.pointerId);}catch(_){}
       function move(ev){if(ev.pointerId!==e.pointerId)return;var dx=ev.clientX-sx,dy=ev.clientY-sy;
         if(!dragging&&Math.hypot(dx,dy)<8)return;
         if(!dragging){dragging=true;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
-          ghost=card.cloneNode(true);ghost.classList.add("ghost","dragging");ghost.style.width=rect.width+"px";ghost.style.height=rect.height+"px";ghost.style.inset="auto";var st=document.createElement("span");st.className="stamp";ghost.appendChild(st);if(offX<rect.width/2)ghost.classList.add("stamp-right");document.body.appendChild(ghost);card.style.opacity="0";}
+          ghost=card.cloneNode(true);ghost.classList.add("ghost","dragging");ghost.style.width=rect.width+"px";ghost.style.height=rect.height+"px";ghost.style.inset="auto";document.body.appendChild(ghost);card.style.opacity="0";}
         if(ev.cancelable)ev.preventDefault();var tilt=Math.max(-7,Math.min(7,dx/16));
-        ghost.style.left=(ev.clientX-offX)+"px";ghost.style.top=(ev.clientY-offY)+"px";ghost.style.transform="rotate("+tilt+"deg)";highlight(ev.clientX,ev.clientY,tx,ghost);}
+        var left=ev.clientX-offX,top=ev.clientY-offY,mx=0,my=0,sc=1,m=magnetBox(ev.clientX,ev.clientY);
+        if(m){var r=m.box.getBoundingClientRect(),pull=1-m.dist/MAGNET,k=.35+.45*pull;   // closer = stronger pull and smaller card
+          mx=(r.left+r.width/2-(left+rect.width/2))*k;my=(r.top+r.height/2-(top+rect.height/2))*k;sc=.62-.12*pull;}
+        ghost.style.left=left+"px";ghost.style.top=top+"px";ghost.style.transform="translate("+mx+"px,"+my+"px) rotate("+tilt+"deg) scale("+sc+")";
+        hot=m?m.box:null;highlight(hot,ghost);}
       function end(ev){if(ev.pointerId!==e.pointerId)return;card.removeEventListener("pointermove",move);card.removeEventListener("pointerup",end);card.removeEventListener("pointercancel",end);
         try{card.releasePointerCapture(e.pointerId);}catch(_){}clearHi();
         if(!dragging){if(onTap)onTap(startT);return;}card.style.opacity="";if(ghost)ghost.remove();
-        var box=boxAt(ev.clientX,ev.clientY);
-        if(box){tx.categoryId=parseInt(box.dataset.id,10);render();}
+        var box=hot||boxAt(ev.clientX,ev.clientY);
+        if(box){buzz();tx.categoryId=parseInt(box.dataset.id,10);render();}
         else{var dx=ev.clientX-sx,dy=ev.clientY-sy;if(Math.abs(dx)>100||dy>80){doAction(tx,"skip");}}}
       card.addEventListener("pointermove",move);card.addEventListener("pointerup",end);card.addEventListener("pointercancel",end);});}
+  var MAGNET=50;   // px around a box in which it pulls the dragged card in
+  function magnetBox(x,y){var best=null;   // nearest category box within reach of the finger
+    document.querySelectorAll(".cat[data-id]").forEach(function(b){var r=b.getBoundingClientRect();
+      var d=Math.hypot(Math.max(r.left-x,0,x-r.right),Math.max(r.top-y,0,y-r.bottom));
+      if(d<=MAGNET&&(!best||d<best.dist))best={box:b,dist:d};});
+    return best;}
+  function buzz(){try{if(navigator.vibrate)navigator.vibrate(12);}catch(_){}}
   function boxAt(x,y){var el=document.elementFromPoint(x,y);var c=el?el.closest(".cat"):null;return (c&&c.dataset.id)?c:null;}   // category boxes only (not "+ Box" or PayPal)
   function catIndex(cid){for(var i=0;i<state.categories.length;i++)if(state.categories[i].id===cid)return i;return -1;}
   function catColor(cid){var i=catIndex(cid);return i>=0?PALETTE[i%PALETTE.length]:"#9aa0b5";}
-  // While a card hovers a box: the box lights up with a frame in its colour,
-  // the ghost card gets a stamp with the box name and the whole screen takes a faint tint of that colour.
-  function highlight(x,y,tx,ghost){var b=boxAt(x,y),cur=document.querySelector(".cat.on");if(b===cur)return;clearHi(ghost);if(!b)return;
-    var cid=parseInt(b.dataset.id,10),cat=state.categories[catIndex(cid)],col=catColor(cid);b.classList.add("on");
+  // While a box pulls the card in: the box lights up with a frame in its colour,
+  // the ghost card takes on that colour and the whole screen gets a faint tint of it.
+  function highlight(b,ghost){var cur=document.querySelector(".cat.on");if(b===cur)return;clearHi(ghost);if(!b)return;
+    var col=catColor(parseInt(b.dataset.id,10));b.classList.add("on");buzz();
     document.body.style.setProperty("--tint",col);document.body.classList.add("tinted");
-    if(ghost){var st=ghost.querySelector(".stamp");st.textContent=cat?cat.name:"";st.style.color=col;ghost.classList.add("stamped");
-      ghost.style.backgroundColor="color-mix(in srgb,"+col+" 24%,var(--card-bg))";}}
+    if(ghost){ghost.classList.add("docked");ghost.style.backgroundColor="color-mix(in srgb,"+col+" 24%,var(--card-bg))";}}
   function clearHi(ghost){document.querySelectorAll(".cat.on").forEach(function(b){b.classList.remove("on");});document.body.classList.remove("tinted");
-    if(ghost){ghost.classList.remove("stamped");ghost.style.backgroundColor="";}}
+    if(ghost){ghost.classList.remove("docked");ghost.style.backgroundColor="";}}
 
   /* ---------- sorting round (feeds the summary shown when the stack is empty) ---------- */
 
