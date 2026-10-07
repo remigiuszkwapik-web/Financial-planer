@@ -694,7 +694,7 @@
         if(ev.cancelable)ev.preventDefault();var tilt=Math.max(-7,Math.min(7,dx/16));
         var left=ev.clientX-offX,top=ev.clientY-offY,mx=0,my=0,sc=1,m=magnetBox(ev.clientX,ev.clientY);
         if(m){var r=m.box.getBoundingClientRect(),pull=1-m.dist/MAGNET,k=.35+.45*pull;   // closer = stronger pull and smaller card
-          mx=(r.left+r.width/2-(left+rect.width/2))*k;my=(r.top+r.height/2-(top+rect.height/2))*k;sc=.62-.12*pull;}
+          mx=(r.left+r.width/2-(left+rect.width/2))*k;my=(r.top+r.height/2-(top+rect.height/2))*k;sc=.55-.15*pull;}
         ghost.style.left=left+"px";ghost.style.top=top+"px";ghost.style.transform="translate("+mx+"px,"+my+"px) rotate("+tilt+"deg) scale("+sc+")";
         hot=m?m.box:null;highlight(hot,ghost);}
       function end(ev){if(ev.pointerId!==e.pointerId)return;card.removeEventListener("pointermove",move);card.removeEventListener("pointerup",end);card.removeEventListener("pointercancel",end);
