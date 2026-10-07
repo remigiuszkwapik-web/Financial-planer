@@ -693,10 +693,11 @@
           ghost=card.cloneNode(true);ghost.classList.add("ghost","dragging");ghost.style.width=rect.width+"px";ghost.style.height=rect.height+"px";ghost.style.inset="auto";document.body.appendChild(ghost);card.style.opacity="0";}
         if(ev.cancelable)ev.preventDefault();var tilt=Math.max(-7,Math.min(7,dx/16));
         var left=ev.clientX-offX,top=ev.clientY-offY,mx=0,my=0,sc=1,m=magnetBox(ev.clientX,ev.clientY);
-        if(m){var r=m.box.getBoundingClientRect(),pull=1-m.dist/MAGNET,k=.35+.45*pull;   // closer = stronger pull and smaller card
-          mx=(r.left+r.width/2-(left+rect.width/2))*k;my=(r.top+r.height/2-(top+rect.height/2))*k;sc=.55-.15*pull;}
+        if(m)sc=1-.6*Math.max(0,Math.min(1,1-m.dist/SHRINK));   // shrinks smoothly from 100 % down to 40 % on the box
+        if(m&&m.dist<=MAGNET){var r=m.box.getBoundingClientRect(),k=.35+.45*(1-m.dist/MAGNET);   // closer = stronger pull
+          mx=(r.left+r.width/2-(left+rect.width/2))*k;my=(r.top+r.height/2-(top+rect.height/2))*k;}
         ghost.style.left=left+"px";ghost.style.top=top+"px";ghost.style.transform="translate("+mx+"px,"+my+"px) rotate("+tilt+"deg) scale("+sc+")";
-        hot=m?m.box:null;highlight(hot,ghost);}
+        hot=(m&&m.dist<=MAGNET)?m.box:null;highlight(hot,ghost);}
       function end(ev){if(ev.pointerId!==e.pointerId)return;card.removeEventListener("pointermove",move);card.removeEventListener("pointerup",end);card.removeEventListener("pointercancel",end);
         try{card.releasePointerCapture(e.pointerId);}catch(_){}clearHi();
         if(!dragging){if(onTap)onTap(startT);return;}card.style.opacity="";if(ghost)ghost.remove();
@@ -704,11 +705,11 @@
         if(box){buzz();tx.categoryId=parseInt(box.dataset.id,10);render();}
         else{var dx=ev.clientX-sx,dy=ev.clientY-sy;if(Math.abs(dx)>100||dy>80){doAction(tx,"skip");}}}
       card.addEventListener("pointermove",move);card.addEventListener("pointerup",end);card.addEventListener("pointercancel",end);});}
-  var MAGNET=50;   // px around a box in which it pulls the dragged card in
-  function magnetBox(x,y){var best=null;   // nearest category box within reach of the finger
+  var MAGNET=50,SHRINK=150;   // px around a box in which it pulls the dragged card in / in which the card starts shrinking
+  function magnetBox(x,y){var best=null;   // nearest category box and the finger's distance to it
     document.querySelectorAll(".cat[data-id]").forEach(function(b){var r=b.getBoundingClientRect();
       var d=Math.hypot(Math.max(r.left-x,0,x-r.right),Math.max(r.top-y,0,y-r.bottom));
-      if(d<=MAGNET&&(!best||d<best.dist))best={box:b,dist:d};});
+      if(!best||d<best.dist)best={box:b,dist:d};});
     return best;}
   function buzz(){try{if(navigator.vibrate)navigator.vibrate(12);}catch(_){}}
   function boxAt(x,y){var el=document.elementFromPoint(x,y);var c=el?el.closest(".cat"):null;return (c&&c.dataset.id)?c:null;}   // category boxes only (not "+ Box" or PayPal)
