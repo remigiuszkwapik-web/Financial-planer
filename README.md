@@ -72,6 +72,10 @@ Dann im Browser: <http://localhost:8000>
 1. **Kategorie-Boxen anlegen** (z. B. Lebensmittel, Miete, Freizeit).
 2. **Screenshots hochladen** — pro Screenshot erscheint eine Karte mit Betrag +
    Empfänger (beides direkt auf der Karte korrigierbar).
+   In der Handy-App (`docs/`) gehen auch **PDF-Kontoauszüge**, z. B. aus der
+   iPhone-Dateien-App: Digitale PDFs werden direkt aus der Textebene gelesen
+   (pdf.js, ohne OCR), gescannte PDFs Seite für Seite per OCR. Jede erkannte
+   Buchung wird eine eigene Karte.
 3. **Karte in eine Box ziehen** (Maus oder Finger).
 4. **Exportieren** über die Buttons oben rechts.
 
