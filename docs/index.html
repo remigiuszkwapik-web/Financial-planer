@@ -910,11 +910,25 @@
       return pg.getTextContent().then(function(c){pages.push({page:pg,lines:pdfPageLines(c)});});});});})(n);
     return chain.then(function(){
       var text=pages.map(function(p){return p.lines.join("\n");}).join("\n");
-      if(text.replace(/\s/g,"").length>=20)return parseTransactions(text);   // digital PDF: exact text, no OCR needed
+      if(text.replace(/\s/g,"").length>=20)return pdfStatementRows(text);   // digital PDF: exact text, no OCR needed
       var rows=[],c2=Promise.resolve();                                      // scanned PDF: OCR each page image
       pages.forEach(function(p){c2=c2.then(function(){return pdfPageCanvas(p.page).then(readRows).then(function(r){rows=rows.concat(r);});});});
       return c2.then(function(){return rows;});
     }).then(function(rows){pdf.destroy();return rows;},function(e){pdf.destroy();throw e;});});}
+  // A statement PDF is a table: a booking line "date text amount" followed by detail lines (valuta date, mandate,
+  // purpose). Only booking lines become rows, so the letterhead (Datum, Alter/Neuer Saldo, IBAN) and amounts inside
+  // detail lines never turn into cards. PayPal debits name the real shop in the details ("Ihr Einkauf bei …").
+  var PDF_STOP=/^(alter saldo|neuer saldo|kontostand|saldo|übertrag|uebertrag|seite \d)/i;
+  function pdfStatementRows(text){var rows=[],cur=null;
+    text.split("\n").forEach(function(raw){var line=raw.trim();if(!line)return;var st=stmtRow(line);
+      if(st){cur={row:st,detail:[]};rows.push(cur);return;}
+      if(!cur)return;if(PDF_STOP.test(line)||cur.detail.length>=8){cur=null;return;}
+      cur.detail.push(line.replace(/^\d{1,2}\.\d{1,2}\.\d{2,4}\s+/,""));});
+    if(!rows.length)return parseTransactions(text);    // not a booking table → read it like a screenshot
+    return rows.map(function(b){var r=b.row,d=b.detail.join(" ").replace(/\s+/g," ");
+      var shop=/paypal/i.test(r.payee||"")&&d.match(/einkauf bei\s+(.+?)(?=\s+(?:mandat|referenz|gläubiger|glaeubiger)\b|$)/i);
+      if(shop)r.payee=cleanPayee(shop[1])||r.payee;
+      return r;});}
   function readAny(file){return isPdf(file)?readPdf(file):readRows(file);}
   function addParsedRows(rows){var today=new Date();rows.forEach(function(r){
     var inc=r.amount>0;var pp=(!inc)&&r.payee&&/paypal/i.test(r.payee);
