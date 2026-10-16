@@ -82,6 +82,11 @@
   .card .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:auto;}
   .card .act{display:grid;place-items:center;border:none;border-radius:11px;background:rgba(127,127,150,.2);color:var(--card-faint);font-size:1rem;padding:7px 11px;cursor:pointer;font-family:inherit;line-height:1;}
   .card .act.del{color:var(--card-expense);}
+  /* booking date: a chip over a transparent native date field, so iOS opens its own date picker */
+  .card .datechip{position:relative;display:flex;align-items:center;gap:5px;margin-right:auto;border-radius:11px;background:rgba(127,127,150,.2);color:var(--card-faint);font-size:.78rem;font-weight:600;padding:7px 10px;font-variant-numeric:tabular-nums;cursor:pointer;white-space:nowrap;}
+  .card .incrow .datechip .ic{display:none;}   /* income row also holds "Gutschreiben": the date alone is enough */
+  .card .incrow .credit{padding:10px 8px;}
+  .card .datechip input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;margin:0;padding:0;font-size:16px;-webkit-appearance:none;appearance:none;cursor:pointer;touch-action:manipulation;}
   .card .act:active{transform:scale(.94);}
   .m-row .del2{color:var(--expense);}
   .card.behind{pointer-events:none;}
@@ -461,6 +466,7 @@
   function cleanPayee(t){var s=t.replace(/\s{2,}/g," ").trim();
     var m=s.match(/\b(visa|mastercard|master|maestro|lastschrift|dauerauftrag)\b\s*/i);
     if(m&&m.index<=14)s=s.slice(m.index+m[0].length);      // "B® VISA KAUFLAND" -> "KAUFLAND"
+    s=s.replace(/^(?:sumup|sq|ztl|iz)\s*\*\s*/i,"");          // card terminal prefix: "SUMUP *HAUS5" -> "HAUS5"
     s=s.replace(/^[^0-9A-Za-zÄÖÜäöü]+/,"");                 // leading symbols ® © * ·
     s=s.replace(/^[a-zäöü]{1,2}[®©™*]+\s+/i,"");            // "B®", "em®"-style noise
     return s.replace(/^[\s·\-–—]+|[\s·\-–—]+$/g,"").slice(0,80);}
@@ -625,7 +631,9 @@
     var head='<div class="crow"><input class="payee" value="'+esc(tx.payee||"")+'" placeholder="'+(inc?"Einnahme, z. B. Gehalt…":"Empfänger…")+'"><button class="kindtog">'+(inc?"Einnahme":"Ausgabe")+ic("swap","sm")+'</button></div>';
     var amount='<input class="amount" inputmode="decimal" value="'+fmt(inc?Math.abs(tx.amount):tx.amount)+'">';
     var bankExp=!inc&&(tx.account||"bank")==="bank";
-    var acts='<div class="actions">'+(inc?'':'<button class="act" data-a="pp" title="Zu PayPal legen" aria-label="Zu PayPal legen">'+ic("reconcile")+'</button>')+(bankExp?'<button class="act" data-a="cash" title="Als Abhebung ins Bargeld" aria-label="Als Abhebung ins Bargeld">'+ic("withdraw")+'</button>':'')+'<button class="act" data-a="skip" title="Später ansehen" aria-label="Später ansehen">'+ic("clock")+'</button><button class="act del" data-a="del" title="Löschen" aria-label="Löschen">'+ic("trash")+'</button></div>';
+    var d=tx.date||todayISO(),dl=d===todayISO()?"Heute":deLabel(d).slice(0,6)+(d.slice(0,4)===todayISO().slice(0,4)?"":d.slice(2,4));
+    var dchip='<label class="datechip" title="Buchungsdatum ändern">'+ic("calendar","sm")+'<span>'+dl+'</span><input type="date" value="'+d+'" aria-label="Buchungsdatum ändern"></label>';
+    var acts='<div class="actions">'+dchip+(inc?'':'<button class="act" data-a="pp" title="Zu PayPal legen" aria-label="Zu PayPal legen">'+ic("reconcile")+'</button>')+(bankExp?'<button class="act" data-a="cash" title="Als Abhebung ins Bargeld" aria-label="Als Abhebung ins Bargeld">'+ic("withdraw")+'</button>':'')+'<button class="act" data-a="skip" title="Später ansehen" aria-label="Später ansehen">'+ic("clock")+'</button><button class="act del" data-a="del" title="Löschen" aria-label="Löschen">'+ic("trash")+'</button></div>';
     c.innerHTML=head+amount+(inc?'<div class="incrow"><button class="credit" title="Dem Konto gutschreiben">'+ic("plus","sm")+'Gutschreiben</button>'+acts+'</div>':acts);   // income: one bottom row so the card keeps the deck height
     return c;}
   function toggleKind(tx){
@@ -649,6 +657,7 @@
     for(var i=shown.length-1;i>=0;i--){(function(tx,i){var card=buildCard(tx);card.style.zIndex=String(10-i);
       card.style.transform="translateY("+(i*-12)+"px) scale("+(1-i*0.05)+")";if(i)card.style.filter="brightness("+(i===1?0.9:0.8)+")";
       if(i===0){var amt=card.querySelector(".amount");
+        card.querySelector(".datechip input").addEventListener("change",function(e){if(!/^\d{4}-\d{2}-\d{2}$/.test(e.target.value))return;tx.date=e.target.value;render();});
         amt.addEventListener("focus",function(){amt.value=(Math.abs(tx.amount)/100).toString().replace(".",",");});
         card.querySelector(".payee").addEventListener("blur",function(e){tx.payee=e.target.value;save();});
         if(tx.kind==="income"){
@@ -686,7 +695,8 @@
   /* ---------- drag (pointer capture) ---------- */
   function enableDrag(card,tx,onTap){
     card.addEventListener("touchmove",function(e){e.preventDefault();},{passive:false});
-    card.addEventListener("pointerdown",function(e){if(e.button&&e.button!==0)return;var startT=e.target;
+    card.addEventListener("pointerdown",function(e){if(e.button&&e.button!==0)return;if(e.target.closest(".datechip"))return;   // the date field opens natively, no drag
+      var startT=e.target;
       var sx=e.clientX,sy=e.clientY,dragging=false,ghost=null,hot=null;var rect=card.getBoundingClientRect(),offX=e.clientX-rect.left,offY=e.clientY-rect.top;
       try{card.setPointerCapture(e.pointerId);}catch(_){}
       function move(ev){if(ev.pointerId!==e.pointerId)return;var dx=ev.clientX-sx,dy=ev.clientY-sy;
