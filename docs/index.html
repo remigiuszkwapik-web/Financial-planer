@@ -72,6 +72,7 @@
   .card .kindtog{flex:none;display:flex;align-items:center;gap:5px;border:none;border-radius:999px;padding:6px 11px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;cursor:pointer;font-family:inherit;background:rgba(127,127,150,.2);color:var(--card-faint);white-space:nowrap;}
   .card.income .kindtog{color:var(--card-income);}
   .card .amount{font-variant-numeric:tabular-nums;font-size:2.3rem;font-weight:700;letter-spacing:-.02em;background:transparent;border:none;color:var(--card-expense);width:100%;padding:0;outline:none;font-family:inherit;}
+  .card .amount::placeholder{color:var(--card-faint);}
   .card.income{border-left:6px solid var(--card-income);justify-content:flex-start;gap:4px;}
   .card.income .amount{color:var(--card-income);}
   .card .credit{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:auto;border:none;border-radius:13px;background:var(--card-income);color:var(--card-on-income);font-weight:700;font-size:.95rem;padding:12px;cursor:pointer;font-family:inherit;width:100%;}
@@ -394,7 +395,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset"><svg class="ic"><use href="#i-trash"/></svg>Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-10-16 · PDF-Import &amp; Datum</div>
+    <div class="pp-hint" id="app-version">Version: 2026-10-31 · Betragsfeld startet leer</div>
   </div>
 </div></div>
 
@@ -629,7 +630,7 @@
   function buildCard(tx){var c=document.createElement("div");c.dataset.id=tx.id;
     var inc=tx.kind==="income";c.className=inc?"card income":"card";
     var head='<div class="crow"><input class="payee" value="'+esc(tx.payee||"")+'" placeholder="'+(inc?"Einnahme, z. B. Gehalt…":"Empfänger…")+'"><button class="kindtog">'+(inc?"Einnahme":"Ausgabe")+ic("swap","sm")+'</button></div>';
-    var amount='<input class="amount" inputmode="decimal" value="'+fmt(inc?Math.abs(tx.amount):tx.amount)+'">';
+    var amount='<input class="amount" inputmode="decimal" placeholder="'+fmt(0)+'" value="'+(tx.amount?fmt(inc?Math.abs(tx.amount):tx.amount):"")+'">';   // empty at 0, so typing needs no deleting first
     var bankExp=!inc&&(tx.account||"bank")==="bank";
     var d=tx.date||todayISO(),dl=d===todayISO()?"Heute":deLabel(d).slice(0,6)+(d.slice(0,4)===todayISO().slice(0,4)?"":d.slice(2,4));
     var dchip='<label class="datechip" title="Buchungsdatum ändern">'+ic("calendar","sm")+'<span>'+dl+'</span><input type="date" value="'+d+'" aria-label="Buchungsdatum ändern"></label>';
@@ -658,15 +659,15 @@
       card.style.transform="translateY("+(i*-12)+"px) scale("+(1-i*0.05)+")";if(i)card.style.filter="brightness("+(i===1?0.9:0.8)+")";
       if(i===0){var amt=card.querySelector(".amount");
         card.querySelector(".datechip input").addEventListener("change",function(e){if(!/^\d{4}-\d{2}-\d{2}$/.test(e.target.value))return;tx.date=e.target.value;render();});
-        amt.addEventListener("focus",function(){amt.value=(Math.abs(tx.amount)/100).toString().replace(".",",");});
+        amt.addEventListener("focus",function(){amt.value=tx.amount?(Math.abs(tx.amount)/100).toString().replace(".",","):"";});
         card.querySelector(".payee").addEventListener("blur",function(e){tx.payee=e.target.value;save();});
         if(tx.kind==="income"){
-          amt.addEventListener("blur",function(){tx.amount=Math.abs(toCents(amt.value));amt.value=fmt(tx.amount);renderSoft();});
+          amt.addEventListener("blur",function(){tx.amount=Math.abs(toCents(amt.value));amt.value=tx.amount?fmt(tx.amount):"";renderSoft();});
           card.querySelector(".credit").addEventListener("click",function(){tx.amount=Math.abs(toCents(amt.value));if(tx.amount<=0){alert("Bitte einen Betrag eingeben.");return;}tx.credited=true;render();});
           card.querySelector(".kindtog").addEventListener("click",function(){toggleKind(tx);});
           Array.prototype.slice.call(card.querySelectorAll(".act")).forEach(function(btn){btn.addEventListener("click",function(){doAction(tx,btn.dataset.a);});});
         }else{
-          amt.addEventListener("blur",function(){tx.amount=-Math.abs(toCents(amt.value));amt.value=fmt(tx.amount);renderSoft();});
+          amt.addEventListener("blur",function(){tx.amount=-Math.abs(toCents(amt.value));amt.value=tx.amount?fmt(tx.amount):"";renderSoft();});
           enableDrag(card,tx,function(t){var act=t.closest(".act");if(act){doAction(tx,act.dataset.a);return;}if(t.closest(".kindtog")){toggleKind(tx);return;}var inp=t.closest("input");if(inp){try{inp.focus();}catch(_){}}});
         }}
       else card.classList.add("behind");deck.appendChild(card);})(shown[i],i);}
