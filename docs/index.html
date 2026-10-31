@@ -72,7 +72,7 @@
   .card .kindtog{flex:none;display:flex;align-items:center;gap:5px;border:none;border-radius:999px;padding:6px 11px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;cursor:pointer;font-family:inherit;background:rgba(127,127,150,.2);color:var(--card-faint);white-space:nowrap;}
   .card.income .kindtog{color:var(--card-income);}
   .card .amount{font-variant-numeric:tabular-nums;font-size:2.3rem;font-weight:700;letter-spacing:-.02em;background:transparent;border:none;color:var(--card-expense);width:100%;padding:0;outline:none;font-family:inherit;}
-  .card .amount::placeholder{color:var(--card-faint);}
+  .card .amount::placeholder{color:inherit;opacity:1;}   /* same red (or green on income) as a typed amount */
   .card.income{border-left:6px solid var(--card-income);justify-content:flex-start;gap:4px;}
   .card.income .amount{color:var(--card-income);}
   .card .credit{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:auto;border:none;border-radius:13px;background:var(--card-income);color:var(--card-on-income);font-weight:700;font-size:.95rem;padding:12px;cursor:pointer;font-family:inherit;width:100%;}
