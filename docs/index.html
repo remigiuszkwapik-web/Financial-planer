@@ -492,7 +492,9 @@
   // comes first and the payee follows "EUR:". The colon after the currency marks the format, so a lost minus still
   // reads as a debit; only an explicit "+" makes it income.
   var NOTIF=/^[^\d+\-−–]{0,3}([+\-−–]?)\s?(\d{1,3}(?:[.\s]\d{3})*,\d{2})\s*(?:EUR|€)\s*[:;]\s*(.+)$/i;
-  function notifRow(line,dateLabel){var m=line.match(NOTIF);if(!m)return null;var payee=cleanPayee(m[3]);if(!payee)return null;
+  function notifRow(line,dateLabel){var m=line.match(NOTIF);if(!m)return null;
+    var tail=m[3],prev;do{prev=tail;tail=tail.replace(/\s+(?:[^\sA-Za-z0-9ÄÖÜäöü]{1,3}|[A-Za-z][^\sA-Za-z0-9]?)\s*$/,"");}while(tail!==prev);   // the banner's rounded edge reads as " F," / " )" / " |"
+    var payee=cleanPayee(tail);if(!payee)return null;
     return {amount:(m[1]==="+"?1:-1)*Math.abs(toCents(m[2])),payee:payee,dateLabel:dateLabel};}
   function parseTransactions(text){var rows=[],cur=null;
     text.split("\n").forEach(function(raw){var line=raw.trim();if(!line)return;
