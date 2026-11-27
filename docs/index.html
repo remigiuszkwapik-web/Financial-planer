@@ -401,7 +401,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset"><svg class="ic"><use href="#i-trash"/></svg>Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-11-26 · Abhebung rückgängig machen</div>
+    <div class="pp-hint" id="app-version">Version: 2026-11-27 · Bank-Benachrichtigungen lesen</div>
   </div>
 </div></div>
 
@@ -488,9 +488,16 @@
     if(!mark&&!STMT_IN.test(text)&&!STMT_OUT.test(text))return null;   // no booking type → can't tell the sign, skip
     var payee=text.replace(STMT_IN,"").replace(STMT_OUT,"");
     return {amount:(neg?-1:1)*Math.abs(toCents(m[3])),payee:cleanPayee(payee)||null,dateLabel:m[1]};}
+  // Push notifications from the bank ("Umsatz gebucht" / "-24,44 EUR: AMAZON PAYMENTS EUROPE S.C.A."): the amount
+  // comes first and the payee follows "EUR:". The colon after the currency marks the format, so a lost minus still
+  // reads as a debit; only an explicit "+" makes it income.
+  var NOTIF=/^[^\d+\-−–]{0,3}([+\-−–]?)\s?(\d{1,3}(?:[.\s]\d{3})*,\d{2})\s*(?:EUR|€)\s*[:;]\s*(.+)$/i;
+  function notifRow(line,dateLabel){var m=line.match(NOTIF);if(!m)return null;var payee=cleanPayee(m[3]);if(!payee)return null;
+    return {amount:(m[1]==="+"?1:-1)*Math.abs(toCents(m[2])),payee:payee,dateLabel:dateLabel};}
   function parseTransactions(text){var rows=[],cur=null;
     text.split("\n").forEach(function(raw){var line=raw.trim();if(!line)return;
       var st=stmtRow(line);if(st){rows.push(st);return;}
+      var nt=notifRow(line,cur);if(nt){rows.push(nt);return;}
       var re=/([+\-−])\s?(\d{1,3}(?:[.\s]\d{3})*,\d{2})/g;var has=/([+\-−])\s?(\d{1,3}(?:[.\s]\d{3})*,\d{2})/.test(line);
       var hdr=line.match(DATEHDR);if(hdr&&!has){cur=hdr[0].trim();return;}
       if(SKIP.test(line))return;var mm,ms=[];while((mm=re.exec(line))!==null)ms.push(mm);if(!ms.length)return;
