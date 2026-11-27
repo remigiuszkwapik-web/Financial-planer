@@ -237,6 +237,10 @@
   .backupbar button{flex:none;border:none;border-radius:11px;font-family:inherit;font-weight:700;font-size:.78rem;padding:8px 11px;cursor:pointer;}
   .backupbar .go{background:var(--accent);color:var(--accent-on);}
   .backupbar .later{background:transparent;color:var(--ink-soft);padding:8px 6px;}
+  .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,12px);opacity:0;z-index:2500;width:calc(100% - 32px);max-width:488px;display:flex;align-items:center;gap:10px;padding:12px 12px 12px 15px;border-radius:16px;background:var(--ink);color:var(--ground);font-size:.86rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:opacity .2s,transform .2s;pointer-events:none;}
+  .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;}
+  .toast .t{flex:1;min-width:0;}
+  .toast button{flex:none;display:flex;align-items:center;gap:6px;border:none;border-radius:11px;background:var(--accent);color:var(--accent-on);font-family:inherit;font-weight:700;font-size:.8rem;padding:8px 11px;cursor:pointer;}
   .safe-note{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border-radius:14px;font-size:.8rem;line-height:1.35;color:var(--ink-soft);
     box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--expense) 45%,transparent);}
   .safe-note>.ic{color:var(--expense);margin-top:1px;}
@@ -261,7 +265,7 @@
   <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V6.5A2.5 2.5 0 0 1 6.5 4H8M16 4h1.5A2.5 2.5 0 0 1 20 6.5V8M20 16v1.5a2.5 2.5 0 0 1-2.5 2.5H16M8 20H6.5A2.5 2.5 0 0 1 4 17.5V16M7.5 12h9"/></symbol>
   <symbol id="i-income" viewBox="0 0 24 24"><path d="M12 3.5v10M7.5 9l4.5 4.5L16.5 9M4 14.5v3A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-3"/></symbol>
   <symbol id="i-expense" viewBox="0 0 24 24"><path d="M12 13.5v-10M7.5 8L12 3.5 16.5 8M4 14.5v3A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-3"/></symbol>
-  <symbol id="i-withdraw" viewBox="0 0 24 24"><path d="M3.5 5h17"/><path d="M6.5 5v13a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V5"/><path d="M12 9v6.5M9.5 13l2.5 2.5 2.5-2.5"/></symbol>
+  <symbol id="i-withdraw" viewBox="0 0 24 24"><rect x="2.5" y="10" width="19" height="10.5" rx="2.5"/><circle cx="12" cy="15.25" r="2.2"/><path d="M6 15.25h.01M18 15.25h.01"/><path d="M12 2.5v5M9.5 5.5L12 8l2.5-2.5"/></symbol>
   <symbol id="i-deposit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
   <symbol id="i-payout" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12h7"/></symbol>
   <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></symbol>
@@ -325,6 +329,8 @@
     <button class="btn" id="withdraw" hidden><svg class="ic"><use href="#i-withdraw"/></svg>Abheben</button>
   </div>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><svg class="ic"><use href="#i-withdraw"/></svg><span class="t" id="toast-t"></span><button id="toast-undo"><svg class="ic sm"><use href="#i-undo"/></svg>Rückgängig</button></div>
 
 <div class="modal" id="modal" hidden><div class="sheet">
   <div class="sheet-head"><span class="t" id="m-title"></span><button class="iconbtn sm" id="m-close" aria-label="Schließen"><svg class="ic"><use href="#i-close"/></svg></button></div>
@@ -395,7 +401,7 @@
     <input type="file" id="restore" accept="application/json,.json" />
     <div class="menu-item danger" id="mi-reset"><svg class="ic"><use href="#i-trash"/></svg>Alle Daten löschen</div>
     <div class="pp-hint" id="storage-status"></div>
-    <div class="pp-hint" id="app-version">Version: 2026-10-31 · Betragsfeld startet leer</div>
+    <div class="pp-hint" id="app-version">Version: 2026-11-27 · Bank-Benachrichtigungen lesen</div>
   </div>
 </div></div>
 
@@ -482,9 +488,18 @@
     if(!mark&&!STMT_IN.test(text)&&!STMT_OUT.test(text))return null;   // no booking type → can't tell the sign, skip
     var payee=text.replace(STMT_IN,"").replace(STMT_OUT,"");
     return {amount:(neg?-1:1)*Math.abs(toCents(m[3])),payee:cleanPayee(payee)||null,dateLabel:m[1]};}
+  // Push notifications from the bank ("Umsatz gebucht" / "-24,44 EUR: AMAZON PAYMENTS EUROPE S.C.A."): the amount
+  // comes first and the payee follows "EUR:". The colon after the currency marks the format, so a lost minus still
+  // reads as a debit; only an explicit "+" makes it income.
+  var NOTIF=/^[^\d+\-−–]{0,3}([+\-−–]?)\s?(\d{1,3}(?:[.\s]\d{3})*,\d{2})\s*(?:EUR|€)\s*[:;]\s*(.+)$/i;
+  function notifRow(line,dateLabel){var m=line.match(NOTIF);if(!m)return null;
+    var tail=m[3],prev;do{prev=tail;tail=tail.replace(/\s+(?:[^\sA-Za-z0-9ÄÖÜäöü]{1,3}|[A-Za-z][^\sA-Za-z0-9]?)\s*$/,"");}while(tail!==prev);   // the banner's rounded edge reads as " F," / " )" / " |"
+    var payee=cleanPayee(tail);if(!payee)return null;
+    return {amount:(m[1]==="+"?1:-1)*Math.abs(toCents(m[2])),payee:payee,dateLabel:dateLabel};}
   function parseTransactions(text){var rows=[],cur=null;
     text.split("\n").forEach(function(raw){var line=raw.trim();if(!line)return;
       var st=stmtRow(line);if(st){rows.push(st);return;}
+      var nt=notifRow(line,cur);if(nt){rows.push(nt);return;}
       var re=/([+\-−])\s?(\d{1,3}(?:[.\s]\d{3})*,\d{2})/g;var has=/([+\-−])\s?(\d{1,3}(?:[.\s]\d{3})*,\d{2})/.test(line);
       var hdr=line.match(DATEHDR);if(hdr&&!has){cur=hdr[0].trim();return;}
       if(SKIP.test(line))return;var mm,ms=[];while((mm=re.exec(line))!==null)ms.push(mm);if(!ms.length)return;
@@ -643,13 +658,25 @@
     render();}
   function deleteTx(id2){var t=state.transactions.filter(function(x){return x.id===id2;})[0];var tid=t&&t.transferId;
     state.transactions=state.transactions.filter(function(x){return x.id!==id2&&(!tid||x.transferId!==tid);});}
+  function cashToExpense(tid){        // undo "Als Abhebung ins Bargeld": the bank side becomes an open expense card again, the cash side goes
+    var bank=state.transactions.filter(function(x){return x.transferId===tid&&acc(x)!=="cash";})[0];
+    if(!bank)return false;
+    state.transactions=state.transactions.filter(function(x){return !(x.transferId===tid&&x!==bank);});
+    bank.kind="expense";bank.amount=-Math.abs(bank.amount);bank.transferId=undefined;bank.categoryId=null;bank.awaitPaypal=undefined;
+    return true;}
+  var toastTimer=null,toastUndo=null;
+  function showToast(text,onUndo){var el=$("#toast");$("#toast-t").textContent=text;toastUndo=onUndo;el.classList.add("show");
+    clearTimeout(toastTimer);toastTimer=setTimeout(hideToast,6000);}
+  function hideToast(){$("#toast").classList.remove("show");toastUndo=null;}
+  $("#toast-undo").addEventListener("click",function(){var f=toastUndo;hideToast();if(f)f();});
   function doAction(tx,a){
     if(a==="del"){if(confirm(tx.transferId?"Diese Abhebung (Konto + Bargeld) löschen?":"Diese Buchung wirklich löschen?")){deleteTx(tx.id);render();}}
     else if(a==="skip"){state.orderFloor=(state.orderFloor||0)-1;tx.deckOrder=state.orderFloor;render();}
     else if(a==="pp"){tx.awaitPaypal=true;tx.categoryId=null;render();}
     else if(a==="cash"){var amt=Math.abs(tx.amount);if(amt<=0){alert("Bitte erst einen Betrag eintragen.");return;}
       var tid=id();tx.kind="transfer";tx.transferId=tid;tx.categoryId=null;tx.awaitPaypal=undefined;
-      state.transactions.push({id:id(),account:"cash",kind:"transfer",amount:amt,payee:"Abhebung",date:tx.date||todayISO(),transferId:tid});render();}}
+      state.transactions.push({id:id(),account:"cash",kind:"transfer",amount:amt,payee:"Abhebung",date:tx.date||todayISO(),transferId:tid});render();
+      showToast(fmt(amt)+" als Abhebung ins Bargeld verschoben",function(){if(cashToExpense(tid))render();});}}
   function renderDeck(){var deck=$("#deck");deck.innerHTML="";
     Array.prototype.slice.call(document.querySelectorAll(".card.ghost")).forEach(function(g){g.remove();}); // clear any orphaned drag ghost
     var cards=unsortedCards();var empty=cards.length===0;
@@ -802,7 +829,11 @@
       row.innerHTML=(isDup?'<span class="warn" title="Mögliche Doppelbuchung">'+ic("warning")+'</span>':'')
         +'<div class="p">'+name+'<div class="d">'+meta+'</div></div>'
         +'<span class="a '+(pos?"pos":"")+'">'+(pos?"+":"")+fmt(t.amount)+'</span>'
+        +(t.kind==="transfer"&&t.transferId?'<button class="back rev" title="Zurück als Ausgabe in den Stapel" aria-label="Zurück als Ausgabe in den Stapel">'+ic("undo")+'</button>':'')
         +'<button class="back del2" title="Löschen" aria-label="Löschen">'+ic("trash")+'</button>';
+      var rev=row.querySelector(".rev");
+      if(rev)rev.addEventListener("click",function(){if(!confirm("Diese Abhebung zurücknehmen? Die Buchung kommt als Ausgabe zurück in den Konto-Stapel, die Bargeld-Buchung wird entfernt."))return;
+        if(cashToExpense(t.transferId)){render();renderHistory();}});
       row.querySelector(".del2").addEventListener("click",function(){if(confirm("Diese Buchung wirklich löschen?")){deleteTx(t.id);render();renderHistory();}});
       list.appendChild(row);});
   }
